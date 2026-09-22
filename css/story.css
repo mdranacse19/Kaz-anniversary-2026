@@ -1,0 +1,404 @@
+/* KAZ Software Anniversary Tour 2026 — cinematic editorial extras */
+
+:root {
+  --bg: #0a1210;
+  --surface: #13201c;
+  --surface-2: #1a2c26;
+  --paper: #f3f6f4;
+  --ink: #0b1f1a;
+  --text: #f2efe8;
+  --muted: #8ba39a;
+  --teal: #2a9d8f;
+  --amber: #e9b44c;
+  --coral: #e07a5f;
+  --line: rgba(242, 239, 232, 0.12);
+  --font-display: "Noto Serif Bengali", Georgia, serif;
+  --font-body: "Hind Siliguri", system-ui, sans-serif;
+  --font-ui: "Outfit", "Hind Siliguri", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+#appShell {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.view {
+  display: none;
+  min-height: 0;
+}
+
+.view.active {
+  display: block;
+  flex: 1 0 auto;
+  animation: fadeRise 400ms ease;
+}
+
+/* Intro fills space above footer so the bar is never half-clipped */
+.view[data-view="intro"].active {
+  display: flex;
+  flex-direction: column;
+}
+
+.view[data-view="intro"].active > .intro-stage {
+  flex: 1 0 auto;
+  min-height: calc(100dvh - var(--footer-height, 4.75rem));
+}
+
+.site-footer {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 20;
+  width: 100%;
+  margin-top: auto;
+  padding: 1.35rem 1.5rem calc(1.35rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  background: #070d0b;
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.9;
+  color: #a8bbb4;
+}
+
+.site-footer p {
+  margin: 0 auto;
+  max-width: 40rem;
+  overflow: visible;
+  text-wrap: balance;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+}
+
+.font-ui {
+  font-family: var(--font-ui);
+}
+
+::selection {
+  background: var(--amber);
+  color: var(--ink);
+}
+
+.noise {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0%;
+  background: linear-gradient(90deg, var(--teal), var(--amber));
+  z-index: 60;
+  transition: width 120ms linear;
+}
+
+.float-nav {
+  backdrop-filter: blur(10px);
+  background: rgba(10, 18, 16, 0.75);
+  border: 1px solid var(--line);
+}
+
+.btn-primary {
+  background: var(--amber);
+  color: var(--ink);
+  transition: transform 200ms ease, background 200ms ease, box-shadow 200ms ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  background: #f0c15d;
+}
+
+.btn-ghost {
+  border: 1px solid var(--line);
+  color: var(--text);
+  transition: border-color 200ms ease, background 200ms ease;
+}
+
+.btn-ghost:hover {
+  border-color: var(--teal);
+  background: rgba(42, 157, 143, 0.12);
+}
+
+.dest-card {
+  transition: transform 250ms ease, border-color 250ms ease;
+  border: 1px solid var(--line);
+}
+
+.dest-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(233, 180, 76, 0.45);
+}
+
+.dest-card .card-media {
+  transition: transform 500ms ease;
+}
+
+.dest-card:hover .card-media {
+  transform: scale(1.04);
+}
+
+.spot-card {
+  transition: transform 250ms ease, border-color 250ms ease;
+}
+
+.spot-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(42, 157, 143, 0.45);
+}
+
+.spot-card .spot-media {
+  transition: transform 500ms ease;
+}
+
+.spot-card:hover .spot-media {
+  transform: scale(1.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spot-card,
+  .spot-card .spot-media {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: none;
+}
+
+.stagger > .reveal:nth-child(1) { transition-delay: 40ms; }
+.stagger > .reveal:nth-child(2) { transition-delay: 100ms; }
+.stagger > .reveal:nth-child(3) { transition-delay: 160ms; }
+.stagger > .reveal:nth-child(4) { transition-delay: 220ms; }
+
+.counter {
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.meter-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--teal), var(--amber));
+  transition: width 800ms ease;
+}
+
+.level-very { color: #5dd6c4; }
+.level-suitable { color: #9ad4ff; }
+.level-planning { color: var(--amber); }
+.level-challenge { color: var(--coral); }
+
+.timeline-line {
+  background: linear-gradient(180deg, var(--teal), transparent);
+}
+
+.chapter-panel {
+  display: none;
+}
+
+.chapter-panel.active {
+  display: block;
+  animation: fadeRise 450ms ease;
+}
+
+@keyframes fadeRise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.hero-mask {
+  background:
+    linear-gradient(180deg, rgba(10, 18, 16, 0.35) 0%, rgba(10, 18, 16, 0.75) 55%, #0a1210 100%);
+}
+
+.route-dash {
+  stroke-dasharray: 6 8;
+  animation: dash 18s linear infinite;
+}
+
+@keyframes dash {
+  to { stroke-dashoffset: -200; }
+}
+
+.modal-backdrop {
+  background: rgba(5, 10, 8, 0.78);
+  backdrop-filter: blur(6px);
+}
+
+.compare-table th,
+.compare-table td {
+  border-color: rgba(11, 31, 26, 0.1);
+}
+
+.vote-card.selected {
+  outline: 2px solid var(--amber);
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .dest-card, .dest-card .card-media, .btn-primary, .meter-fill, .chapter-panel.active, .view.active {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+  .route-dash { animation: none; }
+  .hero-parallax { animation: none !important; }
+  .playful-tagline,
+  .playful-tagline__text,
+  .playful-tagline__emoji {
+    animation: none !important;
+    transform: none !important;
+  }
+  .playful-tagline__text {
+    background: none;
+    color: #f0d78c;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+  }
+}
+
+/* Light compare / paper sections */
+.paper-section {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.paper-section .muted {
+  color: #4d635c;
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
+}
+
+.hero-parallax {
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .view[data-view="intro"].active .hero-parallax {
+    animation: slowZoom 28s ease-in-out alternate infinite;
+  }
+}
+
+@keyframes slowZoom {
+  from { transform: scale(1); }
+  to { transform: scale(1.06); }
+}
+
+/* Playful landing tagline — tasteful motion, storytelling tone */
+.playful-tagline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.45rem 0.65rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 2.4vw, 1.55rem);
+  font-weight: 500;
+  line-height: 1.45;
+  color: #f0d78c;
+  letter-spacing: 0.01em;
+}
+
+.playful-tagline__text {
+  position: relative;
+  display: inline-block;
+  background: linear-gradient(
+    105deg,
+    #f0d78c 0%,
+    #fff6d6 42%,
+    #5dd6c4 58%,
+    #f0d78c 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.playful-tagline__emoji {
+  display: inline-block;
+  font-size: 1.15em;
+  line-height: 1;
+  transform-origin: center bottom;
+  filter: drop-shadow(0 2px 8px rgba(233, 180, 76, 0.25));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .view[data-view="intro"].active .playful-tagline {
+    animation: taglineRise 700ms 180ms ease both;
+  }
+
+  .view[data-view="intro"].active .playful-tagline__text {
+    animation: taglineShimmer 5.5s 0.9s ease-in-out 2;
+  }
+
+  .view[data-view="intro"].active .playful-tagline__emoji {
+    animation: taglineFloat 3.6s 0.6s ease-in-out 4;
+  }
+}
+
+@keyframes taglineRise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes taglineShimmer {
+  0%,
+  100% {
+    background-position: 100% 50%;
+  }
+  50% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes taglineFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}

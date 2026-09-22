@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KAZ Software অ্যানিভার্সারি ট্যুর ২০২৬ — ইন্টারেক্টিভ গন্তব্য গল্প</title>
+  <meta name="description" content="KAZ Software অ্যানিভার্সারি ট্যুর ২০২৬-এর সম্ভাব্য গন্তব্যগুলোর ইন্টারেক্টিভ স্টোরিটেলিং উপস্থাপনা। বাজেট ছাড়া—অভিজ্ঞতা, ইতিহাস ও গ্রুপ উপযোগিতা।" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Noto+Serif+Bengali:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: "#0B1F1A",
+            paper: "#F3F6F4",
+            teal: { DEFAULT: "#2A9D8F", 300: "#5DD6C4", 500: "#2A9D8F" },
+            amber: { 200: "#F0D78C", 300: "#E9B44C" },
+          },
+          fontFamily: {
+            display: ['"Noto Serif Bengali"', "Georgia", "serif"],
+            body: ['"Hind Siliguri"', "system-ui", "sans-serif"],
+            ui: ['"Outfit"', '"Hind Siliguri"', "sans-serif"],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="stylesheet" href="css/story.css" />
+  <script src="https://unpkg.com/lucide@0.468.0" defer></script>
+</head>
+<body class="font-body antialiased">
+  <div class="noise" aria-hidden="true"></div>
+  <div id="progressBar" class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="উপস্থাপনা অগ্রগতি"></div>
+
+  <!-- Floating nav -->
+  <nav class="float-nav fixed top-4 left-1/2 z-40 -translate-x-1/2 rounded-full px-2 py-2 flex items-center gap-0.5 sm:gap-1 max-w-[96vw] overflow-x-auto" aria-label="প্রধান নেভিগেশন">
+    <button type="button" data-nav="intro" class="focus-ring rounded-full px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-ui cursor-pointer text-[var(--muted)] hover:text-white whitespace-nowrap">০১ শুরু</button>
+    <button type="button" data-nav="mission" class="focus-ring rounded-full px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-ui cursor-pointer text-[var(--muted)] hover:text-white whitespace-nowrap">০২ মিশন</button>
+    <button type="button" data-nav="destinations" class="focus-ring rounded-full px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-ui cursor-pointer text-[var(--muted)] hover:text-white whitespace-nowrap">০৩ গন্তব্য</button>
+    <button type="button" data-nav="story" class="focus-ring rounded-full px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-ui cursor-pointer text-[var(--muted)] hover:text-white whitespace-nowrap">০৪ গল্প</button>
+    <button type="button" data-nav="compare" class="focus-ring rounded-full px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-ui cursor-pointer text-[var(--muted)] hover:text-white whitespace-nowrap">০৫ তুলনা</button>
+    <button type="button" data-nav="finale" class="focus-ring rounded-full px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-ui cursor-pointer text-[var(--muted)] hover:text-white whitespace-nowrap">০৬ শেষ</button>
+  </nav>
+
+  <p class="sr-only">কীবোর্ড: Alt + তীর দিয়ে সেকশন বদলান। গল্পে তীর দিয়ে অধ্যায় বদলান। Escape দিয়ে মোডাল বন্ধ।</p>
+
+  <div id="appShell">
+  <!-- 01 Intro -->
+  <section class="view active" data-view="intro" aria-label="যাত্রা শুরু">
+    <div class="intro-stage relative flex items-center">
+      <img
+        src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Sajek_Valley_Rangamati_2.jpg/1920px-Sajek_Valley_Rangamati_2.jpg"
+        alt=""
+        class="absolute inset-0 w-full h-full object-cover hero-parallax"
+        fetchpriority="high"
+        decoding="async"
+      />
+      <div class="hero-mask absolute inset-0"></div>
+      <div class="relative z-10 w-full max-w-6xl mx-auto px-4 py-24">
+        <p class="font-ui text-amber-200 tracking-[0.3em] text-xs md:text-sm mb-6">KAZ SOFTWARE · অ্যানিভার্সারি ট্যুর ২০২৬</p>
+        <h1 class="font-display text-4xl sm:text-5xl md:text-7xl leading-[1.15] max-w-4xl">
+          ৫টি পছন্দ।<br />১টি অবিস্মরণীয় যাত্রা।
+        </h1>
+        <p class="playful-tagline mt-5 max-w-2xl" role="doc-subtitle">
+          <span class="playful-tagline__text">AI কাজ করুক, আমরা ঘুরতে যাই!</span>
+          <span class="playful-tagline__emoji" aria-hidden="true">🤖✈️</span>
+        </p>
+        <p class="mt-6 text-lg md:text-xl text-[var(--muted)] max-w-2xl leading-relaxed">
+          রাতে ঢাকা ছাড়ব। সকালে নতুন দিগন্তে পৌঁছাব।<br />
+          এই ডিসেম্বরে আমরা শুধু ট্যুরে যাচ্ছি না—স্মৃতি তৈরি করছি।
+        </p>
+
+        <div class="mt-10 flex flex-wrap items-center gap-6">
+          <div class="flex items-center gap-3 rounded-full border border-[var(--line)] bg-black/30 px-5 py-3">
+            <span class="font-ui text-teal-300">ঢাকা</span>
+            <svg width="80" height="24" viewBox="0 0 80 24" aria-hidden="true">
+              <path class="route-dash" d="M4 12 H70" stroke="#E9B44C" stroke-width="2" fill="none" />
+              <circle cx="72" cy="12" r="4" fill="#E9B44C" />
+            </svg>
+            <span class="font-display text-xl text-amber-200">?</span>
+          </div>
+          <button id="startJourney" type="button" class="btn-primary focus-ring inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-medium cursor-pointer">
+            যাত্রা শুরু করুন
+            <i data-lucide="arrow-right" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <p id="metaNote" class="mt-8 text-sm text-[var(--muted)] max-w-xl"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 Mission -->
+  <section class="view" data-view="mission" aria-label="মিশন">
+    <div class="min-h-screen max-w-6xl mx-auto px-4 py-24">
+      <p class="font-ui text-teal-300 text-sm tracking-wide mb-3">০২ · মিশন</p>
+      <h2 class="font-display text-4xl md:text-5xl mb-4">অ্যাডভেঞ্চার ব্রিফিং</h2>
+      <p class="text-[var(--muted)] max-w-2xl mb-12">২৫–৩১ ডিসেম্বর ২০২৬-এর জানালায় আমরা রাতে ঢাকা ছাড়ব, সকালে গন্তব্যে পৌঁছাব—আর শুরু হবে অ্যানিভার্সারির সবচেয়ে রোমাঞ্চকর অধ্যায়। প্রশ্ন একটাই—কোন গল্পে?</p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-14">
+        <article class="rounded-2xl bg-[var(--surface)] border border-[var(--line)] p-6 reveal">
+          <p class="counter text-4xl md:text-5xl text-amber-300" data-count="5" data-display="৫">০</p>
+          <p class="mt-2 text-[var(--muted)]">সম্ভাব্য পছন্দ</p>
+        </article>
+        <article class="rounded-2xl bg-[var(--surface)] border border-[var(--line)] p-6 reveal">
+          <p class="counter text-2xl md:text-3xl text-amber-300 pt-2" data-count="4" data-display="৪দিন / ৩রাত">০</p>
+          <p class="mt-2 text-[var(--muted)]">অ্যাডভেঞ্চার দৈর্ঘ্য</p>
+        </article>
+        <article class="rounded-2xl bg-[var(--surface)] border border-[var(--line)] p-6 reveal">
+          <p class="counter text-xl md:text-2xl text-amber-300 pt-3 leading-snug" data-count="25" data-display="২৫–৩১ ডিসেম্বর">০</p>
+          <p class="mt-2 text-[var(--muted)]">সম্ভাব্য ভ্রমণ জানালা</p>
+        </article>
+      </div>
+
+      <div class="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-8 md:p-12 text-center reveal">
+        <h3 class="font-display text-3xl md:text-4xl mb-4">তাহলে KAZ Software কোথায় যাবে?</h3>
+        <p class="text-[var(--muted)] max-w-xl mx-auto mb-8">প্রতিটি গন্তব্য একটা আলাদা অধ্যায়। র‍্যাংকিং নেই, বিজয়ী নেই—শুধু গল্প পড়ে একসঙ্গে সিদ্ধান্ত।</p>
+        <button id="toDestinations" type="button" class="btn-primary focus-ring rounded-full px-7 py-3.5 font-medium cursor-pointer inline-flex items-center gap-2">
+          গন্তব্যগুলো দেখুন
+          <i data-lucide="map" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 Destinations -->
+  <section class="view" data-view="destinations" aria-label="গন্তব্য নির্বাচন">
+    <div class="min-h-screen max-w-6xl mx-auto px-4 py-24">
+      <p class="font-ui text-teal-300 text-sm tracking-wide mb-3">০৩ · গন্তব্য নির্বাচন</p>
+      <h2 class="font-display text-4xl md:text-5xl mb-3">পাঁচটি পছন্দ — নির্দিষ্ট ক্রমে</h2>
+      <p class="text-[var(--muted)] max-w-2xl mb-10">১ সুন্দরবন · ২ সিলেট+শ্রীমঙ্গল · ৩ রাঙ্গামাটি · ৪ সাজেক+রাঙ্গামাটি · ৫ নেপাল। কার্ডে ক্লিক করে গল্প অন্বেষণ করুন—বাজেট নেই, র‍্যাংকিং নেই।</p>
+      <div id="destGrid" class="grid md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+      <div class="mt-12 flex flex-wrap gap-3">
+        <button type="button" data-nav="compare" class="btn-ghost focus-ring rounded-full px-5 py-3 cursor-pointer">সরাসরি তুলনায় যান</button>
+        <button type="button" data-nav="finale" class="btn-ghost focus-ring rounded-full px-5 py-3 cursor-pointer">শেষ পর্দায় যান</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 Story (dynamic) -->
+  <section class="view" data-view="story" aria-label="গন্তব্যের গল্প">
+    <div id="storyRoot">
+      <div class="min-h-screen flex items-center justify-center px-4">
+        <div class="text-center max-w-lg">
+          <h2 class="font-display text-3xl mb-4">আগে একটি গন্তব্য বেছে নিন</h2>
+          <p class="text-[var(--muted)] mb-6">গল্প পড়তে গন্তব্য তালিকায় ফিরে যান।</p>
+          <button type="button" data-nav="destinations" class="btn-primary focus-ring rounded-full px-6 py-3 cursor-pointer">গন্তব্যে যান</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 Compare -->
+  <section class="view paper-section" data-view="compare" aria-label="তুলনা">
+    <div class="min-h-screen max-w-6xl mx-auto px-4 py-24">
+      <p class="font-ui text-teal-700 text-sm tracking-wide mb-3">০৫ · তুলনা বোর্ড</p>
+      <h2 class="font-display text-4xl md:text-5xl mb-3 text-ink">পাঁচটি গল্প পাশাপাশি</h2>
+      <p class="muted max-w-2xl mb-8">কোনো স্কোর, র‍্যাংক বা বিজয়ী নেই। পার্থক্য বুঝে নিজেদের পছন্দ তৈরি করুন।</p>
+      <div class="overflow-x-auto rounded-2xl border border-black/10 bg-white shadow-sm">
+        <table id="compareTable" class="compare-table w-full text-sm min-w-[720px]"></table>
+      </div>
+      <div class="mt-10 flex flex-wrap gap-3">
+        <button type="button" data-nav="destinations" class="btn-ghost focus-ring rounded-full px-5 py-3 cursor-pointer !text-ink !border-ink/20">গল্পে ফিরে যান</button>
+        <button id="toFinale" type="button" class="btn-primary focus-ring rounded-full px-6 py-3 cursor-pointer font-medium">তাহলে… কোথায় যাচ্ছি?</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 Finale -->
+  <section class="view" data-view="finale" aria-label="চূড়ান্ত পর্দা">
+    <div class="min-h-screen max-w-6xl mx-auto px-4 py-24">
+      <p class="font-ui text-teal-300 text-sm tracking-wide mb-3">০৬ · শেষ পর্দা</p>
+      <h2 class="font-display text-4xl md:text-6xl mb-4 max-w-3xl leading-tight">আমাদের পরের অ্যাডভেঞ্চার কোথায় নিয়ে যাবে?</h2>
+      <p class="text-[var(--muted)] max-w-2xl mb-10">
+        পাঁচটি গল্প পড়ে একসঙ্গে সিদ্ধান্ত নেই। কোনো স্বয়ংক্রিয় “সেরা” বা র‍্যাংকিং নেই।
+      </p>
+      <div id="finaleGrid" class="grid md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+      <p id="voteNote" class="mt-6 text-sm text-amber-200/90" role="status" aria-live="polite"></p>
+      <p class="mt-10 text-center text-[var(--muted)] font-display text-xl md:text-2xl max-w-2xl mx-auto leading-relaxed">
+        পাঁচটি সম্ভাব্য অ্যাডভেঞ্চার অপেক্ষা করছে। প্রতিটি গল্প পড়ে একসঙ্গে ঠিক করি—আমাদের পরের অধ্যায় কোথায় শুরু হবে।
+      </p>
+    </div>
+  </section>
+  </div><!-- /#appShell -->
+
+  <footer class="site-footer" role="contentinfo" id="siteFooter">
+    <p>KAZ Software অ্যানিভার্সারি ট্যুর ২০২৬ · বাজেট/র‍্যাংকিং ছাড়া অভিজ্ঞতা-কেন্দ্রিক উপস্থাপনা</p>
+  </footer>
+
+  <!-- Attraction modal -->
+  <div id="attrModal" class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="max-w-lg w-full rounded-2xl bg-[var(--surface)] border border-[var(--line)] overflow-hidden">
+      <img id="modalImg" src="" alt="" class="h-48 w-full object-cover" />
+      <div class="p-5 space-y-3">
+        <h3 id="modalTitle" class="font-display text-2xl"></h3>
+        <p id="modalDesc" class="text-[var(--muted)] text-sm leading-relaxed"></p>
+        <p class="text-sm"><span class="text-amber-200" data-why-label>কেন মজার:</span> <span id="modalWhy"></span></p>
+        <p class="text-sm"><span class="text-amber-200" data-dur-label>আনুমানিক সময়:</span> <span id="modalDur"></span></p>
+        <button id="modalClose" type="button" class="btn-primary focus-ring mt-2 rounded-full px-5 py-2.5 cursor-pointer">বন্ধ করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    window.addEventListener("load", () => {
+      if (window.lucide) window.lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
