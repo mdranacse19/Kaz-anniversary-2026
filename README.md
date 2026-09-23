@@ -49,6 +49,5 @@ python3 -m http.server 8765
 
 ## নোট
 
-- `data/votes.json` আর সোর্স অফ ট্রুথ নয় (Firebase ব্যবহার হয়)  
-- Node `server.mjs` আর প্রয়োজন নেই  
+- ভোট Firebase Firestore-এ সংরক্ষিত হয়  
 - Vercel স্ট্যাটিক হোস্টিং-এ সরাসরি কাজ করে  

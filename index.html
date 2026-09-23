@@ -109,13 +109,15 @@
 
           <aside id="liveVote" class="live-vote intro-hero-vote" aria-labelledby="liveVoteTitle" aria-live="polite">
             <div class="live-vote__head">
-              <h2 id="liveVoteTitle" class="font-display text-2xl md:text-3xl">🗳️ লাইভ ফলাফল</h2>
+              <div class="live-vote__title-row">
+                <h2 id="liveVoteTitle" class="font-display text-2xl md:text-3xl">🗳️ লাইভ ফলাফল</h2>
+                <p id="liveVoteMeta" class="live-vote__total" aria-live="polite"></p>
+              </div>
               <p class="live-vote__sub mt-1 text-[var(--muted)]">আমরা কোথায় যাচ্ছি?</p>
             </div>
             <div id="liveVoteBars" class="live-vote__bars mt-5 space-y-3.5">
               <p class="text-sm text-[var(--muted)]">ফলাফল লোড হচ্ছে…</p>
             </div>
-            <p id="liveVoteMeta" class="mt-4 text-xs text-[var(--muted)]"></p>
           </aside>
         </div>
       </div>

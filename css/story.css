@@ -656,6 +656,38 @@ h1, h2, h3, .font-display {
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
 }
 
+.live-vote__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+
+.live-vote__title-row h2 {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.live-vote__total {
+  margin: 0;
+  flex: 0 0 auto;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: #f0d78c;
+  background: rgba(233, 180, 76, 0.12);
+  border: 1px solid rgba(233, 180, 76, 0.28);
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+  white-space: nowrap;
+}
+
+.live-vote__total:empty {
+  display: none;
+}
+
 .live-vote__head .live-vote__sub {
   font-family: var(--font-ui);
   font-size: 0.95rem;

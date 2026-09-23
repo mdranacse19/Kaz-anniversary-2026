@@ -1,6 +1,0 @@
-{
-  "version": 2,
-  "updatedAt": null,
-  "votes": [],
-  "note": "Unused for live voting. Votes are stored in Firebase Firestore (collection: votes)."
-}

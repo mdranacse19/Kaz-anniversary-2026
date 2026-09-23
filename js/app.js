@@ -208,8 +208,8 @@
   function panelFeel(d) {
     return `<section class="chapter-panel active space-y-8" data-panel="feel">
       <div>
-        <h2 class="font-display text-3xl md:text-4xl">এখানে গেলে কেমন লাগবে?</h2>
-        <p class="mt-2 text-sm text-[var(--muted)]">কাল্পনিক স্টোরি—অফিস ট্যুরের হাসি। তথ্য নয়।</p>
+        <h2 class="font-display text-3xl md:text-4xl">চোখ বন্ধ করলে কী দেখবেন?</h2>
+        <p class="mt-2 text-sm text-[var(--muted)]">এটা তথ্য নয়—একটা অনুভূতির গল্প।</p>
       </div>
       <div class="space-y-4">
         ${d.imagine
@@ -496,7 +496,7 @@
       ...d,
       count: results.counts[d.id] || 0,
       pct: (results.percentages && results.percentages[d.id]) ?? pctOfTotal(results.counts[d.id] || 0, total),
-    }));
+    })).sort((a, b) => b.count - a.count || a.num.localeCompare(b.num, "bn"));
 
     const prevCounts = {};
     $$("[data-live-count]", bars).forEach((el) => {
@@ -521,10 +521,7 @@
       .join("");
 
     if (meta) {
-      meta.textContent =
-        total === 0
-          ? "এখনো কোনো ভোট নেই—প্রথম ভোট দিন!"
-          : `মোট ${total} ভোট`;
+      meta.textContent = `মোট ${total} ভোট`;
     }
 
     requestAnimationFrame(() => {
