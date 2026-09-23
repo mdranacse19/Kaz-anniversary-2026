@@ -5,7 +5,7 @@
  * localStorage is NOT used for vote counts (Anonymous Auth UID is identity).
  */
 (function (global) {
-  const DEST_IDS = ["sundarbans", "sylhet", "rangamati", "sajek", "nepal"];
+  const DEST_IDS = ["sundarbans", "sylhet", "rangamati", "sajek", "nepal", "bandarban"];
   const COLLECTION = "votes";
   const KEY_FALLBACK_VOTER = "kaz-2026-firebase-voter";
 

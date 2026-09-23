@@ -1,6 +1,6 @@
 /* KAZ Software Anniversary Tour 2026 — Destination Stories (Bangla)
    Story-first, projector-friendly. Fun meters = entertainment only.
-   Order: Sundarbans → Sylhet+Sreemangal → Rangamati → Sajek+Rangamati → Nepal
+   Order: Sundarbans → Sylhet+Sreemangal → Rangamati → Sajek+Rangamati → Nepal → Bandarban
 */
 window.TOUR_META = {
   brand: "KAZ Software",
@@ -8,7 +8,7 @@ window.TOUR_META = {
   duration: "৪দিন / ৩রাত",
   window: "২৫–৩১ ডিসেম্বর ২০২৬",
   from: "ঢাকা",
-  note: "রাতে ঢাকা ছাড়ি—সকালে গন্তব্যে। পাঁচটা গল্প, একটা সিদ্ধান্ত।"
+  note: "রাতে ঢাকা ছাড়ি—সকালে গন্তব্যে। ছয়টা গল্প, একটা সিদ্ধান্ত।"
 };
 
 window.DESTINATIONS = [
@@ -667,6 +667,151 @@ window.DESTINATIONS = [
       "কেউ ‘স্নো’ আশা করেছিল—পেল সূর্যোদয়। কেউ আক্ষেপ করেনি।",
       "মোমো অর্ডারে ভোট—ডেমোক্রেসি জিতল পেট।",
       "‘এটা জুমে শেয়ার করি?’—নেটওয়ার্ক বলল না। হিমালয় বলল দেখো।"
+    ]
+  },
+  {
+    "id": "bandarban",
+    "num": "০৬",
+    "name": "বান্দরবান",
+    "short": "বান্দরবান",
+    "tagline": "মেঘের রাজ্যের চূড়ায়",
+    "personality": "পাহাড় · ট্রেক · কুয়াশা",
+    "hook": "মেঘের ওপর সকালের কফি আর ট্রেকিংয়ের রোমাঞ্চ।",
+    "location": "বান্দরবান · পার্বত্য চট্টগ্রাম · বাংলাদেশ",
+    "fact": "নীলগিরির ক্লাউড রিজ থেকে মেঘের সমুদ্র—পাহাড়ি বাংলাদেশের সিগনেচার ভিউ।",
+    "hero": "https://commons.wikimedia.org/wiki/Special:FilePath/Nilgiri,_Bandarban,_Bangladesh.jpg?width=1280",
+    "accent": "#6B8F71",
+    "spotsTitle": "মেঘ ও পাহাড়ের সেরা মুহূর্ত",
+    "imagine": [
+      "ভোর ৫:৩০—কুয়াশা ও মেঘের মিতালি। হাতে কফি, চোখে নীলগিরি।",
+      "শৈলপ্রপাতের জলধারায় কেউ বলে ‘স্ল্যাক অফ’—সবাই হাসে, কেউ ফোনে যায় না।",
+      "সাঙ্গু নদীর বাতাসে সন্ধ্যা; ট্রেইল শেষে গল্প—অফিস যেন অন্য জীবন।"
+    ],
+    "attractions": [
+      {
+        "name": "নীলগিরি",
+        "icon": "mountain",
+        "img": "https://commons.wikimedia.org/wiki/Special:FilePath/Nilgiri,_Bandarban,_Bangladesh.jpg?width=1280",
+        "desc": "ক্লাউড রিজের ওপর সকাল—মেঘের সমুদ্র, দূরের চূড়া, নিঃশব্দ বিস্ময়।",
+        "why": "মেঘের ওপর কফির স্বপ্নের স্পট।",
+        "duration": "ভোর ~২–৩ ঘণ্টা"
+      },
+      {
+        "name": "নীলাচল",
+        "icon": "eye",
+        "img": "https://commons.wikimedia.org/wiki/Special:FilePath/Nilachal,_Bandarban_(Banner).jpg?width=1280",
+        "desc": "পাহাড়ি দিগন্ত ও সূর্যাস্তের ভিউপয়েন্ট—গ্রুপ ফটোর স্বর্গ।",
+        "why": "সোনালি আলোর ক্লাসিক ফ্রেম।",
+        "duration": "১–২ ঘণ্টা"
+      },
+      {
+        "name": "শৈলপ্রপাত",
+        "icon": "droplets",
+        "img": "https://commons.wikimedia.org/wiki/Special:FilePath/Shoilo_Propat_Bandarban.jpg?width=1280",
+        "desc": "পাহাড়ের জলধারা—ঠান্ডা ছোঁয়া, ছবির রোমাঞ্চ।",
+        "why": "প্রকৃতির হাইড্রেশন স্টেশন।",
+        "duration": "১–২ ঘণ্টা"
+      },
+      {
+        "name": "সাঙ্গু নদী",
+        "icon": "waves",
+        "img": "https://commons.wikimedia.org/wiki/Special:FilePath/Sangu_River_0003.jpg?width=1280",
+        "desc": "নদীর বাঁক আর পাহাড়ি গ্রাম—ধীর যাত্রার শান্তি।",
+        "why": "ট্রেকের পর শ্বাস ফেলার জায়গা।",
+        "duration": "আধাদিন"
+      },
+      {
+        "name": "বগা লেক অঞ্চল",
+        "icon": "trees",
+        "img": "https://commons.wikimedia.org/wiki/Special:FilePath/Boga_Lake_at_Bandarban,_Bangladesh.JPG?width=1280",
+        "desc": "উঁচু হ্রদ ও ট্রেইল—যারা একটু বেশি অ্যাডভেঞ্চার চায়।",
+        "why": "পাহাড়ি রোমাঞ্চের পরের স্তর।",
+        "duration": "দিনভর / রুট সাপেক্ষে"
+      },
+      {
+        "name": "পাহাড়ি সংস্কৃতি",
+        "icon": "users",
+        "img": "https://commons.wikimedia.org/wiki/Special:FilePath/Bandarban_Nilachal_Sunset.JPG?width=1280",
+        "desc": "স্থানীয় গ্রাম, খাবার ও অতিথিপরায়ণতা—টিম বন্ডিংয়ের নরম মুহূর্ত।",
+        "why": "মানুষ ও পাহাড়ের গল্প একসাথে।",
+        "duration": "সন্ধ্যা / স্থানীয় অভিজ্ঞতা"
+      }
+    ],
+    "activities": [
+      {
+        "icon": "mountain",
+        "title": "নীলগিরি ক্লাউড রিজ",
+        "text": "মেঘের ওপর সকালের কফি।"
+      },
+      {
+        "icon": "droplets",
+        "title": "শৈলপ্রপাত ও সাঙ্গু",
+        "text": "জলধারা আর নদীর শান্তি।"
+      },
+      {
+        "icon": "footprints",
+        "title": "ট্র্যাকিং",
+        "text": "পাহাড়ি পথে রোমাঞ্চ।"
+      },
+      {
+        "icon": "users",
+        "title": "পাহাড়ি সংস্কৃতি",
+        "text": "গ্রাম, গল্প, নতুন স্বাদ।"
+      },
+      {
+        "icon": "camera",
+        "title": "ফটোগ্রাফি",
+        "text": "কুয়াশা, চূড়া, সূর্যোদয়।"
+      },
+      {
+        "icon": "coffee",
+        "title": "সকালের কফি",
+        "text": "মেঘের সামনে উষ্ণ কাপ।"
+      }
+    ],
+    "pros": [
+      "নীলগিরির মেঘের সমুদ্র—অবিস্মরণীয় সকাল",
+      "ট্রেক + জলপ্রপাত + নদী—বৈচিত্র্যময় অ্যাডভেঞ্চার",
+      "পাহাড়ি সংস্কৃতির ঘনিষ্ঠ ছোঁয়া",
+      "ডিসেম্বরের পরিষ্কার আকাশে পারফেক্ট ভিউ"
+    ],
+    "itinerary4d": [
+      {
+        "day": "রাত ০",
+        "plan": "ঢাকা থেকে রাতের যাত্রা—পাহাড়ের দিকে।"
+      },
+      {
+        "day": "দিন ১",
+        "plan": "বান্দরবান পৌঁছে নীলাচল/স্থানীয় ভিউ; সন্ধ্যায় বিশ্রাম।"
+      },
+      {
+        "day": "দিন ২",
+        "plan": "ভোরে নীলগিরি ক্লাউড রিজ → শৈলপ্রপাত; সাঙ্গু নদীর ধারে সন্ধ্যা।"
+      },
+      {
+        "day": "দিন ৩",
+        "plan": "ট্রেইল/বগা লেক অঞ্চল (রুট সাপেক্ষে) বা পাহাড়ি গ্রাম ঘোরা।"
+      },
+      {
+        "day": "দিন ৪",
+        "plan": "স্মৃতি ও কফির গল্প নিয়ে ঢাকায় ফেরা।"
+      }
+    ],
+    "honest": [
+      "ভোর ৫:৩০ অ্যালার্ম—মেঘের মিতালি মিস করবেন না",
+      "আরামদায়ক হাইকিং জুতা ও হালকা গরম কাপড়",
+      "পাওয়ার ব্যাংক ফুল—প্রতি চূড়ায় নতুন ফ্রেম"
+    ],
+    "fun": {
+      "coffee": 95,
+      "photo": 97,
+      "areWeThere": 75,
+      "groupPhoto": 88
+    },
+    "fails": [
+      "‘মেঘ নাকি ওয়াইফাই সিগনাল?’—সিগনাল নেই, মেঘ আছে। জিতল মেঘ।",
+      "ট্রেইলে কেউ জুম জয়েন করতে গিয়েছিল—পাহাড় বলল অফলাইন মোড অন।",
+      "গ্রুপ ফটোতে সবাই মেঘের দিকে—ফটোগ্রাফার মেঘের ভেতরে।"
     ]
   }
 ];

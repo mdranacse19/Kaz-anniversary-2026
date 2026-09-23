@@ -225,6 +225,15 @@ h1, h2, h3, .font-display {
   border: 1px solid var(--line);
 }
 
+/* Destinations / finale: 6 cards — 1 → 2 → 3 columns */
+.dest-grid {
+  align-items: stretch;
+}
+
+.dest-grid > * {
+  min-width: 0;
+}
+
 .dest-card:hover {
   transform: translateY(-6px);
   border-color: rgba(233, 180, 76, 0.45);
