@@ -67,7 +67,7 @@
       <div class="relative z-10 w-full max-w-7xl mx-auto px-4 py-24">
         <div class="intro-hero-grid">
           <div class="intro-hero-copy">
-            <div class="hero-brand mb-8">
+            <div class="hero-brand hero-enter mb-8" style="--hero-i:0">
               <img
                 src="assets/kaz-logo-hero.png"
                 alt="KAZ"
@@ -79,18 +79,18 @@
               />
               <p class="font-ui text-amber-200 tracking-[0.28em] text-xs md:text-sm mt-4">অ্যানিভার্সারি ট্যুর ২০২৬</p>
             </div>
-            <h1 class="font-display text-4xl sm:text-5xl md:text-6xl xl:text-7xl leading-[1.15]">
+            <h1 class="hero-enter font-display text-4xl sm:text-5xl md:text-6xl xl:text-7xl leading-[1.15]" style="--hero-i:1">
               ছয়টা গল্প।<br />একটা অবিস্মরণীয় যাত্রা।
             </h1>
-            <p class="playful-tagline mt-5" role="doc-subtitle">
+            <p class="playful-tagline hero-enter mt-5" role="doc-subtitle" style="--hero-i:2">
               <span class="playful-tagline__text">AI কাজ করুক, আমরা ঘুরতে যাই!</span>
               <span class="playful-tagline__emoji" aria-hidden="true">🤖✈️</span>
             </p>
-            <p class="mt-6 text-lg md:text-xl text-[var(--muted)] leading-relaxed">
+            <p class="hero-enter mt-6 text-lg md:text-xl text-[var(--muted)] leading-relaxed" style="--hero-i:3">
               আমরা ছয়টা জায়গা দেখছি না—ছয়টা সম্ভাব্য অ্যাডভেঞ্চারের গল্প দেখছি।
             </p>
 
-            <div class="mt-10 flex flex-wrap items-center gap-6">
+            <div class="hero-enter mt-10 flex flex-wrap items-center gap-6" style="--hero-i:4">
               <div class="flex items-center gap-3 rounded-full border border-[var(--line)] bg-black/30 px-5 py-3">
                 <span class="font-ui text-teal-300">ঢাকা</span>
                 <svg width="80" height="24" viewBox="0 0 80 24" aria-hidden="true">
@@ -104,10 +104,10 @@
                 <i data-lucide="arrow-right" class="w-5 h-5" aria-hidden="true"></i>
               </button>
             </div>
-            <p id="metaNote" class="mt-8 text-sm text-[var(--muted)]"></p>
+            <p id="metaNote" class="hero-enter mt-8 text-sm text-[var(--muted)]" style="--hero-i:5"></p>
           </div>
 
-          <aside id="liveVote" class="live-vote intro-hero-vote" aria-labelledby="liveVoteTitle" aria-live="polite">
+          <aside id="liveVote" class="live-vote intro-hero-vote hero-enter" style="--hero-i:3" aria-labelledby="liveVoteTitle" aria-live="polite">
             <div class="live-vote__head">
               <div class="live-vote__title-row">
                 <h2 id="liveVoteTitle" class="font-display text-2xl md:text-3xl">🗳️ লাইভ ফলাফল</h2>
@@ -127,9 +127,9 @@
   <!-- 02 Destinations -->
   <section class="view" data-view="destinations" aria-label="ছয়টি গন্তব্য">
     <div class="min-h-screen max-w-6xl mx-auto px-4 py-24">
-      <p class="font-ui text-teal-300 text-sm tracking-wide mb-3">০২ · ছয়টি পছন্দ</p>
-      <h2 class="font-display text-4xl md:text-5xl mb-3">কোন অ্যাডভেঞ্চারে যাব?</h2>
-      <p class="text-[var(--muted)] max-w-2xl mb-10">প্রতিটি কার্ড একটা আলাদা গল্প। ক্লিক করে অনুভব করুন—কোথায় আমাদের স্মৃতি জমতে পারে।</p>
+      <p class="reveal font-ui text-teal-300 text-sm tracking-wide mb-3">০২ · ছয়টি পছন্দ</p>
+      <h2 class="reveal font-display text-4xl md:text-5xl mb-3">কোন অ্যাডভেঞ্চারে যাব?</h2>
+      <p class="reveal text-[var(--muted)] max-w-2xl mb-10">প্রতিটি কার্ড একটা আলাদা গল্প। ক্লিক করে অনুভব করুন—কোথায় আমাদের স্মৃতি জমতে পারে।</p>
       <div id="destGrid" class="dest-grid grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
       <div class="mt-12 flex flex-wrap gap-3">
         <button type="button" data-nav="finale" class="btn-ghost focus-ring rounded-full px-5 py-3 cursor-pointer">সরাসরি পছন্দে যান</button>
@@ -153,9 +153,9 @@
   <!-- 04 Finale / Vote -->
   <section class="view" data-view="finale" aria-label="ভোট ও চূড়ান্ত অ্যাডভেঞ্চার">
     <div class="min-h-screen max-w-6xl mx-auto px-4 py-24">
-      <p class="font-ui text-teal-300 text-sm tracking-wide mb-3">০৪ · আমাদের অ্যাডভেঞ্চার</p>
-      <h2 class="font-display text-4xl md:text-6xl mb-4 max-w-3xl leading-tight">তাহলে—কোথায় যাচ্ছি?</h2>
-      <p class="text-[var(--muted)] max-w-2xl mb-10">
+      <p class="reveal font-ui text-teal-300 text-sm tracking-wide mb-3">০৪ · আমাদের অ্যাডভেঞ্চার</p>
+      <h2 class="reveal font-display text-4xl md:text-6xl mb-4 max-w-3xl leading-tight">তাহলে—কোথায় যাচ্ছি?</h2>
+      <p class="reveal text-[var(--muted)] max-w-2xl mb-10">
         একটা গন্তব্যে ভোট দিন। প্রতি ডিভাইসে এক সক্রিয় ভোট—চাইলে বদলান বা বাতিল করতে পারবেন।
       </p>
 

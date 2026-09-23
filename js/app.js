@@ -5,6 +5,10 @@
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const Vote = window.VoteService;
 
+  if (!reduceMotion) {
+    document.documentElement.classList.add("js-motion");
+  }
+
   const state = {
     view: "intro",
     destId: null,
@@ -13,6 +17,7 @@
     voteResults: null,
     /** When true, user is re-selecting a destination after Change Vote */
     voteChanging: false,
+    prevChapter: 0,
   };
 
   const views = ["intro", "destinations", "story", "finale"];
@@ -26,8 +31,20 @@
       state.chapter = 0;
     }
 
+    const prevIdx = views.indexOf(state.view);
+    const nextIdx = views.indexOf(id);
+    const enterDir = nextIdx < prevIdx ? "back" : "forward";
+
     state.view = id;
-    $$(".view").forEach((el) => el.classList.toggle("active", el.dataset.view === id));
+    $$(".view").forEach((el) => {
+      const on = el.dataset.view === id;
+      el.classList.toggle("active", on);
+      if (on) el.setAttribute("data-enter", enterDir);
+      else {
+        el.removeAttribute("data-enter");
+        el.classList.remove("is-hero-ready");
+      }
+    });
     $$("[data-nav]").forEach((btn) => {
       const on = btn.dataset.nav === id;
       btn.classList.toggle("text-amber-300", on);
@@ -41,7 +58,13 @@
     updateProgress();
     if (id === "destinations") renderDestCards();
     if (id === "finale") renderFinale();
-    if (id === "intro") refreshLiveVote();
+    if (id === "intro") {
+      refreshLiveVote();
+      requestAnimationFrame(() => {
+        const intro = $('.view[data-view="intro"]');
+        if (intro?.classList.contains("active")) intro.classList.add("is-hero-ready");
+      });
+    }
     if (storyWithDest) {
       // Build story DOM if needed. Always re-select chapter 0 after the view is
       // visible — setChapter during renderStory (while .view is display:none) cannot
@@ -183,6 +206,8 @@
   }
 
   function setChapter(i) {
+    const goingBack = i < state.chapter;
+    state.prevChapter = state.chapter;
     state.chapter = i;
     $$("#chapterTabs [data-chapter]").forEach((btn) => {
       const on = Number(btn.dataset.chapter) === i;
@@ -191,15 +216,21 @@
       btn.classList.toggle("text-[var(--muted)]", !on);
       btn.setAttribute("aria-selected", on ? "true" : "false");
     });
-    $$("#chapterPanels .chapter-panel").forEach((p, idx) => p.classList.toggle("active", idx === i));
+    $$("#chapterPanels .chapter-panel").forEach((p, idx) => {
+      const on = idx === i;
+      p.classList.toggle("active", on);
+      p.classList.toggle("is-back", on && goingBack);
+    });
     const next = $("#nextChapter");
     if (next) next.textContent = i >= chapterIds.length - 1 ? "ভোটে যান →" : "পরবর্তী";
     const prev = $("#prevChapter");
     if (prev) prev.disabled = i === 0;
-    window.scrollTo({ top: ($("#chapterTabs")?.offsetTop || 0) - 20, behavior: reduceMotion ? "auto" : "smooth" });
     $$(".meter-fill").forEach((m) => {
-      const w = m.dataset.w;
-      requestAnimationFrame(() => (m.style.width = w + "%"));
+      const w = Number(m.dataset.w) || 0;
+      m.style.transform = reduceMotion ? `scaleX(${w / 100})` : "scaleX(0)";
+      requestAnimationFrame(() => {
+        m.style.transform = `scaleX(${w / 100})`;
+      });
     });
     if (window.lucide) lucide.createIcons();
     refreshReveals();
@@ -393,15 +424,25 @@
     $("#modalDur").textContent = a.duration;
     $("#modalImg").src = a.img;
     $("#modalImg").alt = a.name;
-    modal.classList.remove("hidden");
+    modal.classList.remove("hidden", "is-open");
     modal.classList.add("flex");
+    requestAnimationFrame(() => modal.classList.add("is-open"));
     $("#modalClose").focus();
   }
 
   function closeModal() {
     const modal = $("#attrModal");
-    modal.classList.add("hidden");
-    modal.classList.remove("flex");
+    if (!modal || modal.classList.contains("hidden")) return;
+    if (reduceMotion) {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex", "is-open");
+      return;
+    }
+    modal.classList.remove("is-open");
+    window.setTimeout(() => {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }, 220);
   }
 
   /* ——— Voting (finale + landing live results) ——— */
@@ -415,6 +456,7 @@
       el.innerHTML = "";
       return;
     }
+    el.classList.remove("hidden");
     el.classList.add("vote-status--" + kind);
     el.innerHTML = html;
   }
@@ -532,10 +574,11 @@
         if (pctEl) pctEl.textContent = String(d.pct);
       });
       $$("[data-live-w]", bars).forEach((el) => {
-        const w = el.getAttribute("data-live-w") || "0";
-        el.style.width = reduceMotion ? w + "%" : "0%";
+        const w = Number(el.getAttribute("data-live-w") || "0");
+        const scale = Math.max(0, Math.min(1, w / 100));
+        el.style.transform = reduceMotion ? `scaleX(${scale})` : "scaleX(0)";
         requestAnimationFrame(() => {
-          el.style.width = w + "%";
+          el.style.transform = `scaleX(${scale})`;
         });
       });
     });
@@ -584,10 +627,11 @@
 
     requestAnimationFrame(() => {
       $$(".vote-bar-fill").forEach((el) => {
-        const w = el.getAttribute("data-bar-w") || "0";
-        el.style.width = reduceMotion ? w + "%" : "0%";
+        const w = Number(el.getAttribute("data-bar-w") || "0");
+        const scale = Math.max(0, Math.min(1, w / 100));
+        el.style.transform = reduceMotion ? `scaleX(${scale})` : "scaleX(0)";
         requestAnimationFrame(() => {
-          el.style.width = w + "%";
+          el.style.transform = `scaleX(${scale})`;
         });
       });
     });
@@ -639,6 +683,15 @@
     const results = await Vote.getResults();
     state.voteResults = results;
     const cast = results.localVote;
+
+    if (opts.justVoted || opts.justChanged) {
+      const selected = $(".vote-card.selected");
+      if (selected && !reduceMotion) {
+        selected.classList.remove("vote-card--confirmed");
+        void selected.offsetWidth;
+        selected.classList.add("vote-card--confirmed");
+      }
+    }
 
     if (opts.justVoted) {
       const name = getDestById(cast?.destinationId)?.name || "";
@@ -701,16 +754,25 @@
   function openUndoConfirm() {
     const modal = $("#undoVoteModal");
     if (!modal) return;
-    modal.classList.remove("hidden");
+    modal.classList.remove("hidden", "is-open");
     modal.classList.add("flex");
+    requestAnimationFrame(() => modal.classList.add("is-open"));
     $("#undoVoteConfirm")?.focus();
   }
 
   function closeUndoConfirm() {
     const modal = $("#undoVoteModal");
-    if (!modal) return;
-    modal.classList.add("hidden");
-    modal.classList.remove("flex");
+    if (!modal || modal.classList.contains("hidden")) return;
+    if (reduceMotion) {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex", "is-open");
+      return;
+    }
+    modal.classList.remove("is-open");
+    window.setTimeout(() => {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }, 220);
   }
 
   async function confirmUndoVote() {
@@ -767,7 +829,7 @@
       else if (changing) voteBtnLabel = votedId === d.id ? "এখানে রাখুন" : "এতে বদলান";
       else if (selected) voteBtnLabel = "ভোট দেওয়া হয়েছে ✓";
 
-      return `<article class="vote-card dest-card rounded-2xl overflow-hidden bg-[var(--surface)] ${selected ? "selected" : ""} ${disabled ? "vote-card--dim" : ""} ${changing ? "vote-card--changing" : ""}">
+      return `<article class="vote-card dest-card reveal rounded-2xl overflow-hidden bg-[var(--surface)] ${selected ? "selected" : ""} ${disabled ? "vote-card--dim" : ""} ${changing ? "vote-card--changing" : ""}">
         <div class="relative">
           <img src="${d.hero}" alt="" class="h-40 w-full object-cover" loading="lazy" decoding="async" width="640" height="320" />
           <span class="vote-count-badge" aria-label="${bnVotes(count)}" data-vote-count="${d.id}">${bnVotes(count)}</span>
@@ -800,6 +862,7 @@
     });
     if (window.lucide) lucide.createIcons();
     await refreshFinaleVoteUI(opts.ui || {});
+    refreshReveals();
   }
 
   function syncVoteCountBadges(results) {
@@ -907,18 +970,21 @@
   }
 
   function refreshReveals() {
-    const els = $$(".reveal");
+    const els = $$(".reveal:not(.visible)");
     if (reduceMotion) {
-      els.forEach((el) => el.classList.add("visible"));
+      $$(".reveal").forEach((el) => el.classList.add("visible"));
       return;
     }
+    if (!els.length) return;
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
-          if (e.isIntersecting) e.target.classList.add("visible");
+          if (!e.isIntersecting) return;
+          e.target.classList.add("visible");
+          io.unobserve(e.target);
         });
       },
-      { threshold: 0.15 }
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
     );
     els.forEach((el) => io.observe(el));
   }
