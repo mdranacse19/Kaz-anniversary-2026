@@ -41,6 +41,7 @@
     updateProgress();
     if (id === "destinations") renderDestCards();
     if (id === "finale") renderFinale();
+    if (id === "intro") refreshLiveVote();
     if (storyWithDest) {
       // Build story DOM if needed. Always re-select chapter 0 after the view is
       // visible — setChapter during renderStory (while .view is display:none) cannot
@@ -403,7 +404,7 @@
     modal.classList.remove("flex");
   }
 
-  /* ——— Voting (finale) ——— */
+  /* ——— Voting (finale + landing live results) ——— */
 
   function setVoteStatus(kind, html) {
     const el = $("#voteStatus");
@@ -429,27 +430,155 @@
     });
   }
 
+  function pctOfTotal(count, total) {
+    if (!total || total <= 0) return 0;
+    return Math.round((count / total) * 100);
+  }
+
+  function animateCount(el, to, reduce) {
+    if (!el) return;
+    const target = Math.max(0, Number(to) || 0);
+    if (reduce) {
+      el.textContent = String(target);
+      return;
+    }
+    const from = Number(el.dataset.countVal || 0);
+    el.dataset.countVal = String(target);
+    if (from === target) {
+      el.textContent = String(target);
+      return;
+    }
+    const start = performance.now();
+    const dur = 450;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = String(Math.round(from + (target - from) * eased));
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  async function refreshLiveVote(resultsIn) {
+    const bars = $("#liveVoteBars");
+    const meta = $("#liveVoteMeta");
+    if (!bars || !Vote) return;
+
+    let results = resultsIn;
+    if (!results) {
+      try {
+        results = await Vote.getResults();
+        state.voteResults = results;
+      } catch {
+        bars.innerHTML = `<p class="text-sm text-[var(--muted)]">ফলাফল লোড করা যায়নি। Firebase কনফিগ চেক করুন (<code class="vote-code">js/firebase-config.js</code>)।</p>`;
+        if (meta) meta.textContent = "";
+        return;
+      }
+    } else {
+      state.voteResults = results;
+    }
+
+    if (results.error === "firebase_not_configured") {
+      bars.innerHTML = `<p class="text-sm text-[var(--muted)]">Firebase এখনো সেটআপ হয়নি। <code class="vote-code">js/firebase-config.js</code>-এ প্রজেক্ট কনফিগ দিন এবং Anonymous Auth + Firestore চালু করুন।</p>`;
+      if (meta) meta.textContent = "";
+      return;
+    }
+
+    if (!results.publishedOk && results.error) {
+      const err = String(results.error || "");
+      let hint = "Firestore ডাটাবেস তৈরি আছে কি এবং নেটওয়ার্ক ঠিক আছে কি চেক করুন।";
+      if (err === "auth/configuration-not-found") {
+        hint =
+          "Firebase Console → <strong>Authentication</strong> খুলে <strong>Get started</strong> চাপুন, তারপর Sign-in method → <strong>Anonymous</strong> Enable করুন। প্রজেক্ট: kaz-software-8007a";
+      } else if (err === "auth/operation-not-allowed" || err.includes("auth/")) {
+        hint = "Firebase Console → Authentication → Sign-in method → <strong>Anonymous</strong> চালু করুন।";
+      } else if (err.includes("permission")) {
+        hint =
+          "Firestore → <strong>Rules</strong> ট্যাবে নিচের ৩ লাইন পেস্ট করে <strong>Publish</strong> চাপুন: " +
+          "<code class=\"vote-code\">match /votes/{id} { allow read, write: if true; }</code> — " +
+          "<a class=\"text-amber-200 underline\" href=\"https://console.firebase.google.com/project/kaz-software-8007a/firestore/rules\" target=\"_blank\" rel=\"noopener\">Rules খুলুন</a>";
+      }
+      bars.innerHTML = `<p class="text-sm text-[var(--muted)]">ভোট লোড করা যায়নি (<code class="vote-code">${results.error}</code>)। ${hint}</p>`;
+      if (meta) meta.textContent = "";
+      return;
+    }
+
+    const total = results.totalVotes || 0;
+    const myId = results.myVote && results.myVote.destinationId;
+    const ordered = window.DESTINATIONS.map((d) => ({
+      ...d,
+      count: results.counts[d.id] || 0,
+      pct: (results.percentages && results.percentages[d.id]) ?? pctOfTotal(results.counts[d.id] || 0, total),
+    }));
+
+    const prevCounts = {};
+    $$("[data-live-count]", bars).forEach((el) => {
+      prevCounts[el.getAttribute("data-live-count")] = el.dataset.countVal || el.textContent;
+    });
+
+    bars.innerHTML = ordered
+      .map((d) => {
+        const mine = myId === d.id;
+        const startCount = prevCounts[d.id] != null ? prevCounts[d.id] : "0";
+        return `
+          <div class="live-vote-row ${mine ? "is-mine" : ""}">
+            <div class="live-vote-row__meta">
+              <p class="live-vote-row__name">${d.name}${mine ? " · আপনার ভোট" : ""}</p>
+              <p class="live-vote-row__stats"><strong data-live-count="${d.id}" data-count-val="${startCount}">${startCount}</strong> votes · <span data-live-pct="${d.id}">${d.pct}</span>%</p>
+            </div>
+            <div class="live-vote-track" aria-hidden="true">
+              <div class="live-vote-fill" data-live-w="${d.pct}"></div>
+            </div>
+          </div>`;
+      })
+      .join("");
+
+    if (meta) {
+      meta.textContent =
+        total === 0
+          ? "এখনো কোনো ভোট নেই—প্রথম ভোট দিন!"
+          : `মোট ${total} ভোট · Firebase Firestore`;
+    }
+
+    requestAnimationFrame(() => {
+      ordered.forEach((d) => {
+        const countEl = bars.querySelector(`[data-live-count="${d.id}"]`);
+        animateCount(countEl, d.count, reduceMotion);
+        const pctEl = bars.querySelector(`[data-live-pct="${d.id}"]`);
+        if (pctEl) pctEl.textContent = String(d.pct);
+      });
+      $$("[data-live-w]", bars).forEach((el) => {
+        const w = el.getAttribute("data-live-w") || "0";
+        el.style.width = reduceMotion ? w + "%" : "0%";
+        requestAnimationFrame(() => {
+          el.style.width = w + "%";
+        });
+      });
+    });
+  }
+
   function renderResultsPanel(results) {
     const root = $("#voteResults");
     if (!root || !results) return;
 
+    const total = results.totalVotes || 0;
     const ranked = window.DESTINATIONS.map((d) => ({
       ...d,
       count: results.counts[d.id] || 0,
     })).sort((a, b) => b.count - a.count || a.num.localeCompare(b.num, "bn"));
 
-    const max = Math.max(1, ...ranked.map((d) => d.count));
     const localId = results.localVote && results.localVote.destinationId;
 
     root.classList.remove("hidden");
     root.innerHTML = `
       <div class="vote-results__head">
         <h3 class="font-display text-3xl md:text-4xl">লাইভ ফলাফল</h3>
+        <p class="text-sm text-[var(--muted)] mt-2">মোট ${total} ভোট · Firebase</p>
       </div>
       <div class="vote-bars mt-8 space-y-4" role="list" aria-label="ভোটের ফলাফল">
         ${ranked
           .map((d, i) => {
-            const pct = Math.round((d.count / max) * 100);
+            const pct = pctOfTotal(d.count, total);
             const mine = localId === d.id;
             return `
             <article class="vote-bar-card ${mine ? "is-mine" : ""}" role="listitem" style="--i:${i}">
@@ -458,7 +587,7 @@
                   <p class="font-ui text-xs text-amber-200/80">${d.num}${mine ? " · আপনার ভোট" : ""}</p>
                   <h4 class="font-display text-xl md:text-2xl mt-1">${d.name}</h4>
                 </div>
-                <p class="font-ui text-amber-200 whitespace-nowrap">${bnVotes(d.count)}</p>
+                <p class="font-ui text-amber-200 whitespace-nowrap">${bnVotes(d.count)} · ${pct}%</p>
               </div>
               <div class="vote-bar-track" aria-hidden="true">
                 <div class="vote-bar-fill" data-bar-w="${pct}"></div>
@@ -572,9 +701,11 @@
     if (note) {
       note.textContent =
         !cast && !state.voteChanging
-          ? "একটা গন্তব্য বেছে ভোট দিন। অফিস Wi-Fi-তে অনেকেই আলাদা করে ভোট দিতে পারবেন। চাইলে পরে বদলান বা বাতিল করুন।"
+          ? "একটা গন্তব্য বেছে ভোট দিন। ভোট Firebase-এ সেভ হয়—রিলোড বা অন্য ডিভাইসেও দেখা যাবে। চাইলে পরে বদলান বা বাতিল করুন।"
           : "";
     }
+
+    refreshLiveVote();
   }
 
   function beginChangeVote() {
@@ -619,7 +750,7 @@
       setVoteStatus(
         "error",
         `<p class="vote-status__title">বাতিল করা যায়নি</p>
-         <p class="vote-status__body">নেটওয়ার্ক বা স্টোরেজ সমস্যা। আবার চেষ্টা করুন।</p>`
+         <p class="vote-status__body">নেটওয়ার্ক/Firebase সমস্যা। কনফিগ ও Auth চালু আছে কি?</p>`
       );
     } finally {
       setVoteButtonsBusy(false);
@@ -737,11 +868,17 @@
             `<p class="vote-status__title">আপনি ইতিমধ্যে ভোট দিয়েছেন</p>
              <p class="vote-status__body">ভোট বদলাতে «ভোট বদলান» চাপুন।</p>`
           );
-        } else if (result.error === "storage") {
+        } else if (result.error === "firebase_not_configured") {
+          setVoteStatus(
+            "error",
+            `<p class="vote-status__title">Firebase সেটআপ হয়নি</p>
+             <p class="vote-status__body"><code class="vote-code">js/firebase-config.js</code>-এ কনফিগ দিন।</p>`
+          );
+        } else if (result.error === "storage" || result.error === "network") {
           setVoteStatus(
             "error",
             `<p class="vote-status__title">সেভ করা যায়নি</p>
-             <p class="vote-status__body">ব্রাউজার স্টোরেজ বন্ধ/পূর্ণ। প্রাইভেট মোড বন্ধ করে আবার চেষ্টা করুন।</p>`
+             <p class="vote-status__body">Firebase/নেটওয়ার্ক সমস্যা। Anonymous Auth ও Firestore rules চেক করুন।</p>`
           );
         } else if (result.error === "invalid") {
           setVoteStatus(
@@ -778,7 +915,7 @@
       setVoteStatus(
         "error",
         `<p class="vote-status__title">ভোট নেওয়া যায়নি</p>
-         <p class="vote-status__body">নেটওয়ার্ক বা স্টোরেজ সমস্যা। আবার চেষ্টা করুন।</p>`
+         <p class="vote-status__body">নেটওয়ার্ক/Firebase সমস্যা। কনফিগ ও Auth চালু আছে কি?</p>`
       );
     } finally {
       setVoteButtonsBusy(false);
@@ -856,6 +993,18 @@
     bindGlobalNav();
     showView("intro");
     if (window.lucide) lucide.createIcons();
+
+    // Realtime live results from Firestore (cross-device)
+    if (Vote && typeof Vote.subscribeResults === "function") {
+      Vote.subscribeResults((results) => {
+        state.voteResults = results;
+        refreshLiveVote(results);
+        if (state.view === "finale") {
+          renderResultsPanel(results);
+          syncVoteCountBadges(results);
+        }
+      });
+    }
 
     const syncFooterHeight = () => {
       const footer = $("#siteFooter");

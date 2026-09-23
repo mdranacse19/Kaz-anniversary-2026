@@ -1,17 +1,45 @@
-# KAZ Software অ্যানিভার্সারি ট্যুর ২০২৬ — চালানোর নিয়ম
+# KAZ Software অ্যানিভার্সারি ট্যুর ২০২৬
 
-## খুলুন
+স্ট্যাটিক সাইট + **Firebase Firestore** ভোট (Vercel-friendly, Node সার্ভার লাগে না)।
 
-`index.html` ডাবল-ক্লিক করুন, অথবা:
+## চালানো
+
+লোকালে যেকোনো স্ট্যাটিক সার্ভার:
 
 ```bash
 cd "/home/mdranacse19/Downloads/Anniversary Tour 2026"
 python3 -m http.server 8765
 ```
 
-→ http://127.0.0.1:8765
+→ http://127.0.0.1:8765  
 
-## ৫টি পছন্দ (নির্দিষ্ট ক্রম)
+বা সরাসরি Vercel-এ ডিপ্লয় করুন।
+
+## Firebase সেটআপ (একবার)
+
+প্রজেক্ট: `kaz-software-8007a`
+
+1. Open: https://console.firebase.google.com/project/kaz-software-8007a/authentication  
+2. **Get started** চাপুন (Authentication প্রোডাক্ট অন করতে)  
+3. **Sign-in method → Anonymous → Enable → Save**  
+4. Firestore আছে কি নিশ্চিত করুন: Build → Firestore Database  
+5. **Firestore → Rules** ট্যাবে `firestore.rules` এর কন্টেন্ট পেস্ট করে **Publish**  
+6. Soft/hard refresh the site  
+
+`auth/configuration-not-found` = Authentication এখনো Get started করা হয়নি (শুধু Anonymous টগল নয়)।
+
+সাইট Anonymous Auth ছাড়াও fallback দিয়ে ভোট চালাতে পারে, কিন্তু Firestore rules অবশ্যই Publish করতে হবে।
+
+## আর্কিটেকচার
+
+`Browser JS → Firebase Firestore → shared votes`
+
+- লাইভ কাউন্ট JavaScript দিয়ে `votes` কালেকশন থেকে হিসাব  
+- Change / Undo একই `votes/{uid}` ডকুমেন্ট আপডেট/ডিলিট  
+- Anonymous Auth UID = voter id (ভোট কাউন্ট localStorage-এ নয়)  
+- `onSnapshot` দিয়ে অন্য ডিভাইসে লাইভ আপডেট  
+
+## ৫টি পছন্দ
 
 1. সুন্দরবন  
 2. সিলেট + শ্রীমঙ্গল  
@@ -19,29 +47,8 @@ python3 -m http.server 8765
 4. সাজেক + রাঙ্গামাটি  
 5. নেপাল  
 
-বাজেট/র‍্যাংকিং নেই। সব কন্টেন্ট বাংলায়।
-
-## কীবোর্ড
-
-- `Alt` + ← / → — সেকশন বদল
-- গল্পের ভিতরে ← / → — অধ্যায় বদল
-- `Esc` — মোডাল বন্ধ
-
 ## নোট
 
-- সব লেখা বাংলায়
-- বাজেট/দাম/র‍্যাংকিং নেই
-- ছবি: Wikimedia Commons-এর গন্তব্য-নির্দিষ্ট ফটো
-
-## ভোট (স্ট্যাটিক সীমা)
-
-ব্রাউজার থেকে `data/votes.json` ফাইলে **লেখা যায় না** (সার্ভার/API ছাড়া)। তাই:
-
-1. ভোট **localStorage**-এ সেভ হয় (anonymous `voterId` + ঐচ্ছিক hashed IP—কখনো raw IP নয়)
-2. স্ক্রিনে দেখা মোট = প্রকাশিত `totals` + এই ডিভাইসের **সক্রিয়** ভোট (আন্ডো করলে +০)
-3. **ভোট বদলান** একই `voterId`-এর রেকর্ড আপডেট করে—দুই গন্তব্যে একসাথে গণনা হয় না
-4. **ভোট বাতিল** সক্রিয় ভোট সরায়; পরে আবার ভোট দেওয়া যায়
-5. একই অফিস Wi-Fi-তে আলাদা ব্রাউজার/ডিভাইস আলাদা করে ভোট দিতে পারে (`voterId` দিয়ে লক; IP দিয়ে ব্লক নয়)
-6. শেয়ার্ড টোটাল আপডেট: এক্সপোর্ট JSON মার্জ → `data/votes.json` totals বাড়ান → redeploy
-
-ডিডুপ: প্রতি ব্রাউজারে **এক সক্রিয় ভোট**। Change/undo লোকাল লগে থাকে; JSON ফাইল কখনো ব্রাউজার থেকে আপডেট হয় না।
+- `data/votes.json` আর সোর্স অফ ট্রুথ নয় (Firebase ব্যবহার হয়)  
+- Node `server.mjs` আর প্রয়োজন নেই  
+- Vercel স্ট্যাটিক হোস্টিং-এ সরাসরি কাজ করে  

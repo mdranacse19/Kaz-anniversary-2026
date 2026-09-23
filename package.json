@@ -1,0 +1,8 @@
+{
+  "name": "kaz-anniversary-tour-2026",
+  "private": true,
+  "description": "KAZ Software Anniversary Tour 2026 — static site + Firebase votes",
+  "scripts": {
+    "start": "python3 -m http.server 8765"
+  }
+}

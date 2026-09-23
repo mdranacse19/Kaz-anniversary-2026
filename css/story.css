@@ -621,3 +621,69 @@ h1, h2, h3, .font-display {
     transform: translateY(-3px);
   }
 }
+
+/* Landing live vote */
+.live-vote {
+  padding: 1.25rem 1.35rem 1.4rem;
+  border-radius: 1.25rem;
+  border: 1px solid var(--line);
+  background: linear-gradient(160deg, rgba(19, 32, 28, 0.92), rgba(10, 18, 16, 0.75));
+  backdrop-filter: blur(8px);
+}
+
+.live-vote__head .live-vote__sub {
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+}
+
+.live-vote-row {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.live-vote-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+}
+
+.live-vote-row__name {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.live-vote-row__stats {
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  color: #f0d78c;
+  white-space: nowrap;
+}
+
+.live-vote-track {
+  height: 0.55rem;
+  border-radius: 999px;
+  background: rgba(242, 239, 232, 0.08);
+  overflow: hidden;
+}
+
+.live-vote-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--teal), var(--amber));
+  transition: width 700ms ease;
+}
+
+.live-vote-row.is-mine .live-vote-row__name {
+  color: #f0d78c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-vote-fill {
+    transition: none;
+  }
+}

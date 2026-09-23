@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Office tour voting — open rules for shared poll.
+    // Tighten later after Anonymous Auth is fully enabled.
+    match /votes/{voterId} {
+      allow read, write: if true;
+    }
+  }
+}

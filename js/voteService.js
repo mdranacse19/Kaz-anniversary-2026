@@ -1,322 +1,375 @@
-/* KAZ Anniversary Tour 2026 — Vote service (static-compatible)
+/* KAZ Anniversary Tour 2026 — Vote service (Firebase + plain JS)
  *
- * Limitation: a browser cannot write to data/votes.json on disk/CDN.
- * This service:
- *  - Reads published totals from data/votes.json (shared baseline)
- *  - Casts at most one active vote per anonymous voterId (localStorage)
- *  - Supports changeVote (same voterId, replace destination) and undoVote/clearVote
- *  - Optionally stores a SHA-256 hashed public IP (never raw IP)
- *  - Does NOT block multiple voters on the same IP (office Wi-Fi)
- *  - Keeps a local vote log matching the votes.json schema for export/merge
- *
- * Display counts = published totals + this device's active vote (+0 after undo).
+ * Architecture: Browser JS → Cloud Firestore → shared votes
+ * Totals are calculated in JavaScript from vote documents.
+ * localStorage is NOT used for vote counts (Anonymous Auth UID is identity).
  */
 (function (global) {
-  const VOTES_URL = "data/votes.json";
   const DEST_IDS = ["sundarbans", "sylhet", "rangamati", "sajek", "nepal"];
-  const KEY_VOTER = "kaz-2026-voter-id";
-  const KEY_CAST = "kaz-2026-cast-vote";
-  const KEY_LOG = "kaz-2026-local-vote-log";
-  const IP_SALT = "kaz-anniversary-tour-2026-v1";
+  const COLLECTION = "votes";
+  const KEY_FALLBACK_VOTER = "kaz-2026-firebase-voter";
 
-  let publishedCache = null;
   let busy = false;
+  let lastResults = null;
+  let authReady = null;
+  let authMode = "pending"; // "anonymous" | "fallback" | "pending"
+  let fallbackVoterId = null;
+  let unsubLive = null;
+  const liveListeners = new Set();
 
-  function safeParse(raw, fallback) {
-    try {
-      return raw ? JSON.parse(raw) : fallback;
-    } catch {
-      return fallback;
-    }
-  }
-
-  function getVoterId() {
-    try {
-      let id = localStorage.getItem(KEY_VOTER);
-      if (!id) {
-        id =
-          global.crypto && crypto.randomUUID
-            ? crypto.randomUUID()
-            : "v-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
-        localStorage.setItem(KEY_VOTER, id);
-      }
-      return id;
-    } catch {
-      return "ephemeral-" + Date.now();
-    }
-  }
-
-  function getCastVote() {
-    try {
-      const v = safeParse(localStorage.getItem(KEY_CAST), null);
-      if (!v || !v.destinationId || !DEST_IDS.includes(v.destinationId)) return null;
-      if (v.active === false) return null;
-      return v;
-    } catch {
-      return null;
-    }
-  }
-
-  function hasUserVoted() {
-    return !!getCastVote();
-  }
-
-  function getLocalLog() {
-    try {
-      const log = safeParse(localStorage.getItem(KEY_LOG), []);
-      return Array.isArray(log) ? log : [];
-    } catch {
-      return [];
-    }
-  }
-
-  function saveLocalLog(log) {
-    try {
-      localStorage.setItem(KEY_LOG, JSON.stringify(log.slice(-50)));
-    } catch {
-      /* quota / private mode */
-    }
-  }
-
-  function persistCast(record) {
-    try {
-      localStorage.setItem(KEY_CAST, JSON.stringify(record));
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  function clearCastStorage() {
-    try {
-      localStorage.removeItem(KEY_CAST);
-    } catch {
-      /* private mode */
-    }
-  }
-
-  async function sha256Hex(text) {
-    if (!global.crypto || !crypto.subtle) return null;
-    const data = new TextEncoder().encode(text);
-    const buf = await crypto.subtle.digest("SHA-256", data);
-    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  }
-
-  /** Best-effort public IP → hash only. Soft-fail; never blocks voting. */
-  async function getIpHash() {
-    try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 2500);
-      const res = await fetch("https://api.ipify.org?format=json", {
-        signal: ctrl.signal,
-        cache: "no-store",
-      });
-      clearTimeout(t);
-      if (!res.ok) return null;
-      const data = await res.json();
-      const ip = typeof data.ip === "string" ? data.ip.trim() : "";
-      if (!ip) return null;
-      return await sha256Hex(IP_SALT + "|" + ip);
-    } catch {
-      return null;
-    }
-  }
-
-  function emptyTotals() {
+  function emptyCounts() {
     return DEST_IDS.reduce((acc, id) => {
       acc[id] = 0;
       return acc;
     }, {});
   }
 
-  async function loadPublished(force) {
-    if (publishedCache && !force) return publishedCache;
+  function calculateTotals(votes) {
+    const counts = emptyCounts();
+    const list = Array.isArray(votes) ? votes : [];
+    for (const v of list) {
+      if (!v || typeof v !== "object") continue;
+      const id = v.destination || v.destinationId;
+      if (DEST_IDS.includes(id)) counts[id] += 1;
+    }
+    const totalVotes = DEST_IDS.reduce((s, id) => s + counts[id], 0);
+    const percentages = emptyCounts();
+    DEST_IDS.forEach((id) => {
+      percentages[id] = totalVotes > 0 ? Math.round((counts[id] / totalVotes) * 100) : 0;
+    });
+    return { counts, totalVotes, percentages };
+  }
+
+  function nowIso() {
+    const d = new Date();
+    const shifted = new Date(d.getTime() + 6 * 60 * 60 * 1000);
+    const p = (n) => String(n).padStart(2, "0");
+    return (
+      `${shifted.getUTCFullYear()}-${p(shifted.getUTCMonth() + 1)}-${p(shifted.getUTCDate())}` +
+      `T${p(shifted.getUTCHours())}:${p(shifted.getUTCMinutes())}:${p(shifted.getUTCSeconds())}+06:00`
+    );
+  }
+
+  function firebaseReady() {
+    return !!(
+      global.FIREBASE_ENABLED &&
+      global.firebase &&
+      global.firebase.apps &&
+      global.firebase.app
+    );
+  }
+
+  function ensureApp() {
+    if (!global.FIREBASE_ENABLED) {
+      const err = new Error("firebase_not_configured");
+      err.code = "firebase_not_configured";
+      throw err;
+    }
+    if (!global.firebase) {
+      const err = new Error("firebase_sdk_missing");
+      err.code = "firebase_sdk_missing";
+      throw err;
+    }
+    if (!global.firebase.apps.length) {
+      global.firebase.initializeApp(global.FIREBASE_CONFIG);
+    }
+    return {
+      auth: global.firebase.auth(),
+      db: global.firebase.firestore(),
+    };
+  }
+
+  function getOrCreateFallbackVoterId() {
+    if (fallbackVoterId) return fallbackVoterId;
     try {
-      const res = await fetch(VOTES_URL, { cache: "no-store" });
-      if (!res.ok) throw new Error("votes_unavailable");
-      const data = await res.json();
-      const totals = emptyTotals();
-      DEST_IDS.forEach((id) => {
-        const n = Number(data.totals && data.totals[id]);
-        totals[id] = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
-      });
-      publishedCache = {
-        ok: true,
-        updatedAt: data.updatedAt || null,
-        persistence: data.persistence || "static-read-only",
-        note: data.note || "",
-        totals,
-        votes: Array.isArray(data.votes) ? data.votes : [],
-      };
-      return publishedCache;
+      let id = localStorage.getItem(KEY_FALLBACK_VOTER);
+      if (!id) {
+        id =
+          global.crypto && crypto.randomUUID
+            ? crypto.randomUUID()
+            : "v-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+        localStorage.setItem(KEY_FALLBACK_VOTER, id);
+      }
+      fallbackVoterId = id;
+      return id;
     } catch {
-      publishedCache = {
-        ok: false,
-        updatedAt: null,
-        persistence: "static-read-only",
-        note: "",
-        totals: emptyTotals(),
-        votes: [],
-        error: "unavailable",
-      };
-      return publishedCache;
+      fallbackVoterId = "ephemeral-" + Date.now().toString(36);
+      return fallbackVoterId;
     }
   }
 
-  /**
-   * Display counts = published totals + this device's active cast vote (if any).
-   * After undo, local active vote is gone → +0. Never claims JSON was written.
-   */
-  async function getResults() {
-    const published = await loadPublished(false);
-    const local = getCastVote();
-    const counts = { ...published.totals };
-    if (local && DEST_IDS.includes(local.destinationId)) {
-      counts[local.destinationId] = (counts[local.destinationId] || 0) + 1;
+  async function ensureAuth() {
+    if (!authReady) {
+      authReady = (async () => {
+        const { auth } = ensureApp();
+        if (auth.currentUser) {
+          authMode = "anonymous";
+          return { uid: auth.currentUser.uid, mode: "anonymous" };
+        }
+        try {
+          const cred = await auth.signInAnonymously();
+          authMode = "anonymous";
+          return { uid: cred.user.uid, mode: "anonymous" };
+        } catch (e) {
+          const code = e && e.code ? String(e.code) : "";
+          // Auth product not enabled yet — allow office voting via client voter id.
+          if (
+            code === "auth/configuration-not-found" ||
+            code === "auth/operation-not-allowed" ||
+            code === "auth/admin-restricted-operation"
+          ) {
+            authMode = "fallback";
+            console.warn(
+              "[VoteService] Firebase Anonymous Auth unavailable (" +
+                code +
+                "). Using local voter id. Enable Authentication → Anonymous in Firebase Console when ready."
+            );
+            return { uid: getOrCreateFallbackVoterId(), mode: "fallback" };
+          }
+          throw e;
+        }
+      })().catch((e) => {
+        authReady = null;
+        throw e;
+      });
     }
-    const totalVotes = DEST_IDS.reduce((s, id) => s + (counts[id] || 0), 0);
+    return authReady;
+  }
+
+  function getVoterId() {
+    if (authMode === "fallback") return getOrCreateFallbackVoterId();
+    try {
+      const { auth } = ensureApp();
+      if (auth.currentUser) return auth.currentUser.uid;
+    } catch {
+      /* not ready */
+    }
+    return fallbackVoterId;
+  }
+
+  function docsToVotes(snapshot) {
+    const votes = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data() || {};
+      if (!DEST_IDS.includes(data.destination)) return;
+      votes.push({
+        destination: data.destination,
+        voter_id: doc.id,
+        voted_at: data.voted_at || data.updated_at || null,
+      });
+    });
+    return votes;
+  }
+
+  function buildResults(votes, voterId, error) {
+    const { counts, totalVotes, percentages } = calculateTotals(votes);
+    let myVote = null;
+    if (voterId) {
+      const mine = votes.find((v) => v.voter_id === voterId);
+      if (mine) {
+        myVote = {
+          destination: mine.destination,
+          destinationId: mine.destination,
+          voter_id: mine.voter_id,
+          voterId: mine.voter_id,
+          voted_at: mine.voted_at,
+        };
+      }
+    }
+    const ok = !error;
     return {
+      ok,
+      votes,
       counts,
+      percentages,
       totalVotes,
-      publishedOk: published.ok,
-      publishedTotals: published.totals,
-      localVote: local,
-      canWriteRemote: false,
-      persistence: "localStorage + published data/votes.json (read-only)",
+      updatedAt: nowIso(),
+      myVote,
+      localVote: myVote,
+      persistence: "firebase-firestore",
+      canWriteRemote: ok && global.FIREBASE_ENABLED,
+      publishedOk: ok,
+      error: error || null,
+    };
+  }
+
+  function unavailable(code) {
+    const results = buildResults([], null, code || "unavailable");
+    results.canWriteRemote = false;
+    results.publishedOk = false;
+    lastResults = results;
+    return results;
+  }
+
+  async function fetchAllVotes() {
+    const { db } = ensureApp();
+    const user = await ensureAuth();
+    const snap = await db.collection(COLLECTION).get();
+    const votes = docsToVotes(snap);
+    lastResults = buildResults(votes, user.uid);
+    return lastResults;
+  }
+
+  async function getResults() {
+    try {
+      if (!global.FIREBASE_ENABLED) return unavailable("firebase_not_configured");
+      return await fetchAllVotes();
+    } catch (e) {
+      const code = e?.code || e?.message || "unavailable";
+      return unavailable(String(code));
+    }
+  }
+
+  function getCastVote() {
+    return (lastResults && lastResults.myVote) || null;
+  }
+
+  function hasUserVoted() {
+    return !!getCastVote();
+  }
+
+  function notifyLive(results) {
+    liveListeners.forEach((fn) => {
+      try {
+        fn(results);
+      } catch {
+        /* listener error */
+      }
+    });
+  }
+
+  /** Realtime Live Results — Device B sees Device A without reload. */
+  function subscribeResults(callback) {
+    if (typeof callback === "function") liveListeners.add(callback);
+
+    if (!global.FIREBASE_ENABLED) {
+      const r = unavailable("firebase_not_configured");
+      if (callback) callback(r);
+      return () => liveListeners.delete(callback);
+    }
+
+    if (!unsubLive) {
+      (async () => {
+        try {
+          const { db } = ensureApp();
+          await ensureAuth();
+          unsubLive = db.collection(COLLECTION).onSnapshot(
+            (snap) => {
+              const voterId = getVoterId();
+              lastResults = buildResults(docsToVotes(snap), voterId);
+              notifyLive(lastResults);
+            },
+            (err) => {
+              const r = unavailable(err?.code || "snapshot_error");
+              notifyLive(r);
+            }
+          );
+        } catch (e) {
+          const r = unavailable(e?.code || e?.message || "unavailable");
+          notifyLive(r);
+        }
+      })();
+    } else if (lastResults && callback) {
+      callback(lastResults);
+    }
+
+    return () => {
+      liveListeners.delete(callback);
     };
   }
 
   async function castVote(destinationId) {
     if (busy) return { ok: false, error: "busy" };
-    if (!DEST_IDS.includes(destinationId)) {
-      return { ok: false, error: "invalid" };
-    }
-
-    const existing = getCastVote();
-    if (existing && DEST_IDS.includes(existing.destinationId)) {
-      return { ok: false, error: "already", vote: existing };
-    }
+    if (!DEST_IDS.includes(destinationId)) return { ok: false, error: "invalid" };
+    if (!global.FIREBASE_ENABLED) return { ok: false, error: "firebase_not_configured", results: unavailable("firebase_not_configured") };
 
     busy = true;
     try {
-      const voterId = getVoterId();
-      const ipHash = await getIpHash();
-      const record = {
-        destinationId,
-        voterId,
-        ipHash,
-        timestamp: new Date().toISOString(),
-        active: true,
-        action: "cast",
-      };
-
-      if (!persistCast(record)) {
-        return { ok: false, error: "storage" };
+      const { db } = ensureApp();
+      const user = await ensureAuth();
+      const ref = db.collection(COLLECTION).doc(user.uid);
+      const existing = await ref.get();
+      if (existing.exists) {
+        const results = await fetchAllVotes();
+        return { ok: false, error: "already", vote: existing.data(), results };
       }
-
-      const log = getLocalLog();
-      log.push(record);
-      saveLocalLog(log);
-
-      const results = await getResults();
-      return {
-        ok: true,
-        vote: record,
-        results,
-        wroteToProjectJson: false,
-        message: "local_only",
-      };
+      const stamp = nowIso();
+      const record = { destination: destinationId, voted_at: stamp, updated_at: stamp };
+      await ref.set(record);
+      const results = await fetchAllVotes();
+      return { ok: true, vote: { ...record, voter_id: user.uid }, results };
+    } catch (e) {
+      return { ok: false, error: e?.code || "network", results: lastResults };
     } finally {
       busy = false;
     }
   }
 
-  /**
-   * Replace the active vote with a new destination (same voterId).
-   * Never keeps two active destinations for one voter.
-   */
   async function changeVote(destinationId) {
     if (busy) return { ok: false, error: "busy" };
-    if (!DEST_IDS.includes(destinationId)) {
-      return { ok: false, error: "invalid" };
-    }
-
-    const existing = getCastVote();
-    if (!existing) {
-      return castVote(destinationId);
-    }
-    if (existing.destinationId === destinationId) {
-      const results = await getResults();
-      return { ok: true, vote: existing, results, unchanged: true, wroteToProjectJson: false };
-    }
+    if (!DEST_IDS.includes(destinationId)) return { ok: false, error: "invalid" };
+    if (!global.FIREBASE_ENABLED) return { ok: false, error: "firebase_not_configured", results: unavailable("firebase_not_configured") };
 
     busy = true;
     try {
-      const voterId = existing.voterId || getVoterId();
-      const ipHash = (await getIpHash()) || existing.ipHash || null;
-      const record = {
-        destinationId,
-        voterId,
-        ipHash,
-        timestamp: new Date().toISOString(),
-        active: true,
-        action: "change",
-        previousDestinationId: existing.destinationId,
-      };
+      const { db } = ensureApp();
+      const user = await ensureAuth();
+      const ref = db.collection(COLLECTION).doc(user.uid);
+      const existing = await ref.get();
+      const stamp = nowIso();
 
-      if (!persistCast(record)) {
-        return { ok: false, error: "storage" };
+      if (!existing.exists) {
+        const record = { destination: destinationId, voted_at: stamp, updated_at: stamp };
+        await ref.set(record);
+        const results = await fetchAllVotes();
+        return { ok: true, vote: { ...record, voter_id: user.uid }, results };
       }
 
-      const log = getLocalLog();
-      log.push(record);
-      saveLocalLog(log);
+      const prev = existing.data() || {};
+      if (prev.destination === destinationId) {
+        const results = await fetchAllVotes();
+        return {
+          ok: true,
+          unchanged: true,
+          vote: { ...prev, voter_id: user.uid },
+          results,
+        };
+      }
 
-      const results = await getResults();
-      return {
-        ok: true,
-        vote: record,
-        results,
-        wroteToProjectJson: false,
-        message: "local_only",
+      const record = {
+        destination: destinationId,
+        voted_at: prev.voted_at || stamp,
+        updated_at: stamp,
       };
+      await ref.set(record);
+      const results = await fetchAllVotes();
+      return { ok: true, vote: { ...record, voter_id: user.uid }, results };
+    } catch (e) {
+      return { ok: false, error: e?.code || "network", results: lastResults };
     } finally {
       busy = false;
     }
   }
 
-  /** Remove / deactivate the active vote. User may vote again. */
   async function clearVote() {
     if (busy) return { ok: false, error: "busy" };
-
-    const existing = getCastVote();
-    if (!existing) {
-      return { ok: true, cleared: false, results: await getResults() };
-    }
+    if (!global.FIREBASE_ENABLED) return { ok: false, error: "firebase_not_configured", results: unavailable("firebase_not_configured") };
 
     busy = true;
     try {
-      clearCastStorage();
-
-      const log = getLocalLog();
-      log.push({
-        destinationId: existing.destinationId,
-        voterId: existing.voterId || getVoterId(),
-        ipHash: existing.ipHash || null,
-        timestamp: new Date().toISOString(),
-        active: false,
-        action: "undo",
-      });
-      saveLocalLog(log);
-
-      const results = await getResults();
-      return {
-        ok: true,
-        cleared: true,
-        results,
-        wroteToProjectJson: false,
-        message: "local_only",
-      };
+      const { db } = ensureApp();
+      const user = await ensureAuth();
+      const ref = db.collection(COLLECTION).doc(user.uid);
+      const existing = await ref.get();
+      if (!existing.exists) {
+        const results = await fetchAllVotes();
+        return { ok: true, cleared: false, results };
+      }
+      await ref.delete();
+      const results = await fetchAllVotes();
+      return { ok: true, cleared: true, results };
+    } catch (e) {
+      return { ok: false, error: e?.code || "network", results: lastResults };
     } finally {
       busy = false;
     }
@@ -326,44 +379,30 @@
     return clearVote();
   }
 
-  function exportLocalVotes() {
-    const cast = getCastVote();
-    const log = getLocalLog();
-    return {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      note: "Merge active votes into data/votes.json totals, then redeploy. Never store raw IP. Undo/change history is in votes[].",
-      cast,
-      votes: log,
-    };
+  function purgeLegacyVoteStorage() {
+    try {
+      localStorage.removeItem("kaz-2026-cast-vote");
+      localStorage.removeItem("kaz-2026-local-vote-log");
+      localStorage.removeItem("kaz-2026-voter-id");
+      // Keep KEY_FALLBACK_VOTER — identity when Anonymous Auth is unavailable
+    } catch {
+      /* private mode */
+    }
   }
 
-  function downloadExport() {
-    const payload = exportLocalVotes();
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "kaz-2026-vote-export.json";
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
+  purgeLegacyVoteStorage();
 
   global.VoteService = {
     DEST_IDS,
     getVoterId,
     getCastVote,
     hasUserVoted,
-    loadPublished,
+    calculateTotals,
     getResults,
+    subscribeResults,
     castVote,
     changeVote,
     clearVote,
     undoVote,
-    exportLocalVotes,
-    downloadExport,
   };
 })(typeof window !== "undefined" ? window : globalThis);
