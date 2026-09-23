@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "updatedAt": "2026-09-23T00:00:00.000Z",
+  "persistence": "static-read-only",
+  "note": "Browsers cannot append to this file. Published totals are the shared baseline after organizers merge exported votes and redeploy. Each browser stores one active cast vote in localStorage (voterId + ipHash + timestamp). Change updates that record; undo clears it. Display = published totals + local active vote (+0 after undo).",
+  "destinations": [
+    "sundarbans",
+    "sylhet",
+    "rangamati",
+    "sajek",
+    "nepal"
+  ],
+  "totals": {
+    "sundarbans": 0,
+    "sylhet": 0,
+    "rangamati": 0,
+    "sajek": 0,
+    "nepal": 0
+  },
+  "votes": []
+}
