@@ -470,7 +470,7 @@
         results = await Vote.getResults();
         state.voteResults = results;
       } catch {
-        bars.innerHTML = `<p class="text-sm text-[var(--muted)]">ফলাফল লোড করা যায়নি। Firebase কনফিগ চেক করুন (<code class="vote-code">js/firebase-config.js</code>)।</p>`;
+        bars.innerHTML = `<p class="text-sm text-[var(--muted)]">ফলাফল লোড করা যায়নি। একটু পর আবার চেষ্টা করুন।</p>`;
         if (meta) meta.textContent = "";
         return;
       }
@@ -479,26 +479,13 @@
     }
 
     if (results.error === "firebase_not_configured") {
-      bars.innerHTML = `<p class="text-sm text-[var(--muted)]">Firebase এখনো সেটআপ হয়নি। <code class="vote-code">js/firebase-config.js</code>-এ প্রজেক্ট কনফিগ দিন এবং Anonymous Auth + Firestore চালু করুন।</p>`;
+      bars.innerHTML = `<p class="text-sm text-[var(--muted)]">ভোট সিস্টেম এখনো প্রস্তুত নয়। একটু পর আবার চেষ্টা করুন।</p>`;
       if (meta) meta.textContent = "";
       return;
     }
 
     if (!results.publishedOk && results.error) {
-      const err = String(results.error || "");
-      let hint = "Firestore ডাটাবেস তৈরি আছে কি এবং নেটওয়ার্ক ঠিক আছে কি চেক করুন।";
-      if (err === "auth/configuration-not-found") {
-        hint =
-          "Firebase Console → <strong>Authentication</strong> খুলে <strong>Get started</strong> চাপুন, তারপর Sign-in method → <strong>Anonymous</strong> Enable করুন। প্রজেক্ট: kaz-software-8007a";
-      } else if (err === "auth/operation-not-allowed" || err.includes("auth/")) {
-        hint = "Firebase Console → Authentication → Sign-in method → <strong>Anonymous</strong> চালু করুন।";
-      } else if (err.includes("permission")) {
-        hint =
-          "Firestore → <strong>Rules</strong> ট্যাবে নিচের ৩ লাইন পেস্ট করে <strong>Publish</strong> চাপুন: " +
-          "<code class=\"vote-code\">match /votes/{id} { allow read, write: if true; }</code> — " +
-          "<a class=\"text-amber-200 underline\" href=\"https://console.firebase.google.com/project/kaz-software-8007a/firestore/rules\" target=\"_blank\" rel=\"noopener\">Rules খুলুন</a>";
-      }
-      bars.innerHTML = `<p class="text-sm text-[var(--muted)]">ভোট লোড করা যায়নি (<code class="vote-code">${results.error}</code>)। ${hint}</p>`;
+      bars.innerHTML = `<p class="text-sm text-[var(--muted)]">ফলাফল লোড করা যায়নি। নেটওয়ার্ক চেক করে আবার চেষ্টা করুন।</p>`;
       if (meta) meta.textContent = "";
       return;
     }
@@ -537,7 +524,7 @@
       meta.textContent =
         total === 0
           ? "এখনো কোনো ভোট নেই—প্রথম ভোট দিন!"
-          : `মোট ${total} ভোট · Firebase Firestore`;
+          : `মোট ${total} ভোট`;
     }
 
     requestAnimationFrame(() => {
@@ -573,7 +560,7 @@
     root.innerHTML = `
       <div class="vote-results__head">
         <h3 class="font-display text-3xl md:text-4xl">লাইভ ফলাফল</h3>
-        <p class="text-sm text-[var(--muted)] mt-2">মোট ${total} ভোট · Firebase</p>
+        <p class="text-sm text-[var(--muted)] mt-2">মোট ${total} ভোট</p>
       </div>
       <div class="vote-bars mt-8 space-y-4" role="list" aria-label="ভোটের ফলাফল">
         ${ranked
@@ -701,7 +688,7 @@
     if (note) {
       note.textContent =
         !cast && !state.voteChanging
-          ? "একটা গন্তব্য বেছে ভোট দিন। ভোট Firebase-এ সেভ হয়—রিলোড বা অন্য ডিভাইসেও দেখা যাবে। চাইলে পরে বদলান বা বাতিল করুন।"
+          ? "একটা গন্তব্য বেছে ভোট দিন। চাইলে পরে বদলান বা বাতিল করতে পারবেন।"
           : "";
     }
 
@@ -750,7 +737,7 @@
       setVoteStatus(
         "error",
         `<p class="vote-status__title">বাতিল করা যায়নি</p>
-         <p class="vote-status__body">নেটওয়ার্ক/Firebase সমস্যা। কনফিগ ও Auth চালু আছে কি?</p>`
+         <p class="vote-status__body">নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।</p>`
       );
     } finally {
       setVoteButtonsBusy(false);
@@ -871,14 +858,14 @@
         } else if (result.error === "firebase_not_configured") {
           setVoteStatus(
             "error",
-            `<p class="vote-status__title">Firebase সেটআপ হয়নি</p>
-             <p class="vote-status__body"><code class="vote-code">js/firebase-config.js</code>-এ কনফিগ দিন।</p>`
+            `<p class="vote-status__title">ভোট নেওয়া যায়নি</p>
+             <p class="vote-status__body">সিস্টেম এখনো প্রস্তুত নয়। একটু পর আবার চেষ্টা করুন।</p>`
           );
         } else if (result.error === "storage" || result.error === "network") {
           setVoteStatus(
             "error",
             `<p class="vote-status__title">সেভ করা যায়নি</p>
-             <p class="vote-status__body">Firebase/নেটওয়ার্ক সমস্যা। Anonymous Auth ও Firestore rules চেক করুন।</p>`
+             <p class="vote-status__body">নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।</p>`
           );
         } else if (result.error === "invalid") {
           setVoteStatus(
@@ -915,7 +902,7 @@
       setVoteStatus(
         "error",
         `<p class="vote-status__title">ভোট নেওয়া যায়নি</p>
-         <p class="vote-status__body">নেটওয়ার্ক/Firebase সমস্যা। কনফিগ ও Auth চালু আছে কি?</p>`
+         <p class="vote-status__body">নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।</p>`
       );
     } finally {
       setVoteButtonsBusy(false);

@@ -64,56 +64,60 @@
         decoding="async"
       />
       <div class="hero-mask absolute inset-0"></div>
-      <div class="relative z-10 w-full max-w-6xl mx-auto px-4 py-24">
-        <div class="hero-brand mb-8">
-          <img
-            src="assets/kaz-logo-hero.png"
-            alt="KAZ"
-            width="220"
-            height="89"
-            class="hero-logo"
-            fetchpriority="high"
-            decoding="async"
-          />
-          <p class="font-ui text-amber-200 tracking-[0.28em] text-xs md:text-sm mt-4">অ্যানিভার্সারি ট্যুর ২০২৬</p>
-        </div>
-        <h1 class="font-display text-4xl sm:text-5xl md:text-7xl leading-[1.15] max-w-4xl">
-          পাঁচটা গল্প।<br />একটা অবিস্মরণীয় যাত্রা।
-        </h1>
-        <p class="playful-tagline mt-5 max-w-2xl" role="doc-subtitle">
-          <span class="playful-tagline__text">AI কাজ করুক, আমরা ঘুরতে যাই!</span>
-          <span class="playful-tagline__emoji" aria-hidden="true">🤖✈️</span>
-        </p>
-        <p class="mt-6 text-lg md:text-xl text-[var(--muted)] max-w-2xl leading-relaxed">
-          আমরা পাঁচটা জায়গা দেখছি না—পাঁচটা সম্ভাব্য অ্যাডভেঞ্চারের গল্প দেখছি।
-        </p>
+      <div class="relative z-10 w-full max-w-7xl mx-auto px-4 py-24">
+        <div class="intro-hero-grid">
+          <div class="intro-hero-copy">
+            <div class="hero-brand mb-8">
+              <img
+                src="assets/kaz-logo-hero.png"
+                alt="KAZ"
+                width="220"
+                height="89"
+                class="hero-logo"
+                fetchpriority="high"
+                decoding="async"
+              />
+              <p class="font-ui text-amber-200 tracking-[0.28em] text-xs md:text-sm mt-4">অ্যানিভার্সারি ট্যুর ২০২৬</p>
+            </div>
+            <h1 class="font-display text-4xl sm:text-5xl md:text-6xl xl:text-7xl leading-[1.15]">
+              পাঁচটা গল্প।<br />একটা অবিস্মরণীয় যাত্রা।
+            </h1>
+            <p class="playful-tagline mt-5" role="doc-subtitle">
+              <span class="playful-tagline__text">AI কাজ করুক, আমরা ঘুরতে যাই!</span>
+              <span class="playful-tagline__emoji" aria-hidden="true">🤖✈️</span>
+            </p>
+            <p class="mt-6 text-lg md:text-xl text-[var(--muted)] leading-relaxed">
+              আমরা পাঁচটা জায়গা দেখছি না—পাঁচটা সম্ভাব্য অ্যাডভেঞ্চারের গল্প দেখছি।
+            </p>
 
-        <div class="mt-10 flex flex-wrap items-center gap-6">
-          <div class="flex items-center gap-3 rounded-full border border-[var(--line)] bg-black/30 px-5 py-3">
-            <span class="font-ui text-teal-300">ঢাকা</span>
-            <svg width="80" height="24" viewBox="0 0 80 24" aria-hidden="true">
-              <path class="route-dash" d="M4 12 H70" stroke="#E9B44C" stroke-width="2" fill="none" />
-              <circle cx="72" cy="12" r="4" fill="#E9B44C" />
-            </svg>
-            <span class="font-display text-xl text-amber-200">?</span>
+            <div class="mt-10 flex flex-wrap items-center gap-6">
+              <div class="flex items-center gap-3 rounded-full border border-[var(--line)] bg-black/30 px-5 py-3">
+                <span class="font-ui text-teal-300">ঢাকা</span>
+                <svg width="80" height="24" viewBox="0 0 80 24" aria-hidden="true">
+                  <path class="route-dash" d="M4 12 H70" stroke="#E9B44C" stroke-width="2" fill="none" />
+                  <circle cx="72" cy="12" r="4" fill="#E9B44C" />
+                </svg>
+                <span class="font-display text-xl text-amber-200">?</span>
+              </div>
+              <button id="startJourney" type="button" class="btn-primary focus-ring inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-medium cursor-pointer">
+                গল্পগুলো দেখুন
+                <i data-lucide="arrow-right" class="w-5 h-5" aria-hidden="true"></i>
+              </button>
+            </div>
+            <p id="metaNote" class="mt-8 text-sm text-[var(--muted)]"></p>
           </div>
-          <button id="startJourney" type="button" class="btn-primary focus-ring inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-medium cursor-pointer">
-            গল্পগুলো দেখুন
-            <i data-lucide="arrow-right" class="w-5 h-5" aria-hidden="true"></i>
-          </button>
-        </div>
-        <p id="metaNote" class="mt-8 text-sm text-[var(--muted)] max-w-xl"></p>
 
-        <aside id="liveVote" class="live-vote mt-14 max-w-2xl" aria-labelledby="liveVoteTitle" aria-live="polite">
-          <div class="live-vote__head">
-            <h2 id="liveVoteTitle" class="font-display text-2xl md:text-3xl">🗳️ Live Tour Vote</h2>
-            <p class="live-vote__sub mt-1 text-[var(--muted)]">Where are we going?</p>
-          </div>
-          <div id="liveVoteBars" class="live-vote__bars mt-6 space-y-4">
-            <p class="text-sm text-[var(--muted)]">ফলাফল লোড হচ্ছে…</p>
-          </div>
-          <p id="liveVoteMeta" class="mt-4 text-xs text-[var(--muted)]"></p>
-        </aside>
+          <aside id="liveVote" class="live-vote intro-hero-vote" aria-labelledby="liveVoteTitle" aria-live="polite">
+            <div class="live-vote__head">
+              <h2 id="liveVoteTitle" class="font-display text-2xl md:text-3xl">🗳️ লাইভ ফলাফল</h2>
+              <p class="live-vote__sub mt-1 text-[var(--muted)]">আমরা কোথায় যাচ্ছি?</p>
+            </div>
+            <div id="liveVoteBars" class="live-vote__bars mt-5 space-y-3.5">
+              <p class="text-sm text-[var(--muted)]">ফলাফল লোড হচ্ছে…</p>
+            </div>
+            <p id="liveVoteMeta" class="mt-4 text-xs text-[var(--muted)]"></p>
+          </aside>
+        </div>
       </div>
     </div>
   </section>
@@ -150,7 +154,7 @@
       <p class="font-ui text-teal-300 text-sm tracking-wide mb-3">০৪ · আমাদের অ্যাডভেঞ্চার</p>
       <h2 class="font-display text-4xl md:text-6xl mb-4 max-w-3xl leading-tight">তাহলে—কোথায় যাচ্ছি?</h2>
       <p class="text-[var(--muted)] max-w-2xl mb-10">
-        একটা গন্তব্যে ভোট দিন। প্রতি ডিভাইসে এক সক্রিয় ভোট—সব ভোট <strong>Firebase</strong>-এ শেয়ার হয়। চাইলে বদলান বা বাতিল করতে পারবেন।
+        একটা গন্তব্যে ভোট দিন। প্রতি ডিভাইসে এক সক্রিয় ভোট—চাইলে বদলান বা বাতিল করতে পারবেন।
       </p>
 
       <div id="voteStatus" class="vote-status mb-8 hidden" role="status" aria-live="polite"></div>

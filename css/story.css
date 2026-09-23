@@ -622,13 +622,38 @@ h1, h2, h3, .font-display {
   }
 }
 
-/* Landing live vote */
+/* Intro: left copy 60% · live results 40% */
+.intro-hero-grid {
+  display: grid;
+  gap: 2rem;
+  align-items: start;
+}
+
+.intro-hero-copy {
+  min-width: 0;
+}
+
+.intro-hero-vote {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 960px) {
+  .intro-hero-grid {
+    grid-template-columns: 3fr 2fr; /* 60% / 40% */
+    gap: 2.5rem 3rem;
+    align-items: center;
+  }
+}
+
+/* Landing live vote card */
 .live-vote {
-  padding: 1.25rem 1.35rem 1.4rem;
+  padding: 1.25rem 1.3rem 1.35rem;
   border-radius: 1.25rem;
   border: 1px solid var(--line);
-  background: linear-gradient(160deg, rgba(19, 32, 28, 0.92), rgba(10, 18, 16, 0.75));
-  backdrop-filter: blur(8px);
+  background: linear-gradient(160deg, rgba(19, 32, 28, 0.94), rgba(10, 18, 16, 0.88));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
 }
 
 .live-vote__head .live-vote__sub {
