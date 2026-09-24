@@ -452,11 +452,36 @@
 
       <div class="max-w-6xl mx-auto px-4 py-10 space-y-4" id="chapterPanels"></div>
 
-      <div class="max-w-6xl mx-auto px-4 pb-16 flex flex-wrap gap-3 justify-between">
+      <div class="max-w-6xl mx-auto px-4 pt-2 pb-4 flex flex-wrap gap-3 justify-between">
         <button type="button" class="btn-ghost focus-ring rounded-full px-5 py-3 cursor-pointer" id="prevChapter">পূর্ববর্তী</button>
         <button type="button" class="btn-primary focus-ring rounded-full px-5 py-3 cursor-pointer font-medium" id="nextChapter">পরবর্তী</button>
       </div>
+
+      <nav class="story-other max-w-6xl mx-auto px-4 pb-16" id="storyOtherDests" aria-label="অন্যান্য গল্প"></nav>
     `;
+
+    const others = (window.DESTINATIONS || []).filter((x) => x.id !== state.destId);
+    const otherRoot = $("#storyOtherDests");
+    if (otherRoot) {
+      if (!others.length) {
+        otherRoot.hidden = true;
+      } else {
+        otherRoot.hidden = false;
+        otherRoot.innerHTML = `
+          <p class="story-other__label font-ui text-sm text-[var(--muted)] mb-3">অন্যান্য গল্প</p>
+          <div class="story-other__list">
+            ${others
+              .map(
+                (x) => `
+              <button type="button" class="story-other__chip focus-ring cursor-pointer" data-open-story="${x.id}" aria-label="${x.name} এর গল্প খুলুন">
+                <span class="story-other__num">${x.num}</span>
+                <span class="story-other__name">${x.short || x.name}</span>
+              </button>`
+              )
+              .join("")}
+          </div>`;
+      }
+    }
 
     $("#chapterTabs").innerHTML = chapterTitles
       .map(
@@ -487,6 +512,9 @@
       else setChapter(state.chapter + 1);
     });
     $("[data-back-dest]", root)?.addEventListener("click", () => showView("destinations"));
+    $$("#storyOtherDests [data-open-story]").forEach((btn) => {
+      btn.addEventListener("click", () => openStory(btn.getAttribute("data-open-story")));
+    });
 
     if (window.lucide) lucide.createIcons();
     setChapter(0, { instant: true });

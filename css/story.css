@@ -1024,3 +1024,70 @@ html.js-motion #chapterTabs button:active {
 .site-footer__credit a:hover {
   color: #f0d78c;
 }
+
+/* Other destinations under story chapter prev/next */
+.story-other {
+  border-top: 1px solid var(--line);
+  padding-top: 1.25rem;
+}
+
+.story-other__label {
+  letter-spacing: 0.04em;
+}
+
+.story-other__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.story-other__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(19, 32, 28, 0.85);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  line-height: 1.2;
+  touch-action: manipulation;
+  transition:
+    border-color 200ms ease,
+    background 200ms ease,
+    color 200ms ease,
+    transform 120ms var(--ease-press, ease);
+}
+
+.story-other__chip:hover {
+  border-color: rgba(233, 180, 76, 0.45);
+  background: rgba(42, 157, 143, 0.12);
+  color: #f0d78c;
+}
+
+.story-other__chip:active {
+  transform: scale(0.97);
+  transition-duration: 0ms;
+}
+
+.story-other__num {
+  color: var(--amber);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+}
+
+.story-other__name {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story-other__chip {
+    transition: none;
+  }
+  .story-other__chip:active {
+    transform: none;
+  }
+}
