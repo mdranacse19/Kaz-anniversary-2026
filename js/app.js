@@ -1226,7 +1226,7 @@
       const disabled = locked && !selected;
       const count = counts[d.id] || 0;
       const lockedOther = locked && !selected;
-      let voteBtnLabel = "এই গন্তব্যে ভোট দিন";
+      let voteBtnLabel = "ভোট দিন";
       if (lockedOther) voteBtnLabel = "অন্য গন্তব্যে ভোট দিয়েছেন";
       else if (selected && !changing) voteBtnLabel = "ভোট দেওয়া হয়েছে ✓";
       else if (state.voteBusy) voteBtnLabel = "ভোট দিন";
