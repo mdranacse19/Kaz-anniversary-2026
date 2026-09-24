@@ -1433,8 +1433,12 @@
     const r = mobile ? 4 : 4.5;
     const fs = mobile ? 10.5 : 13;
     const amp = mobile ? 11 : 15;
+    // Route order: stops inside Bangladesh first, abroad (Nepal) last. Card and
+    // chapter numbering stays as in data.js; the route is possibilities, not a sequence.
+    const abroad = new Set(["nepal"]);
+    const ordered = [...window.DESTINATIONS].sort((a, b) => Number(abroad.has(a.id)) - Number(abroad.has(b.id)));
     const stops = [{ id: "", label: window.TOUR_META?.from || "ঢাকা", start: true }].concat(
-      window.DESTINATIONS.map((d) => ({ id: d.id, label: d.short || d.name }))
+      ordered.map((d) => ({ id: d.id, label: d.short || d.name }))
     );
     const n = stops.length;
     const step = (W - pad * 2) / (n - 1);
