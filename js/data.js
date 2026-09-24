@@ -179,7 +179,7 @@ window.DESTINATIONS = [
       {
         "name": "শ্রীমঙ্গল চা বাগান",
         "icon": "leaf",
-        "img": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/Tea_garden_at_sylhet_2022.jpg/1280px-Tea_garden_at_sylhet_2022.jpg",
+        "img": "https://commons.wikimedia.org/wiki/Special:FilePath/Tea_gardens_in_Sreemangal_05.jpg?width=1280",
         "desc": "সারি সারি চাপাতা—সবুজ সমুদ্রের ভিতর হাঁটা।",
         "why": "ক্লাসিক সিলেট ফ্রেম।",
         "duration": "২–৩ ঘণ্টা"

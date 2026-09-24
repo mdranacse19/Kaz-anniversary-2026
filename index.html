@@ -33,6 +33,7 @@
     };
   </script>
   <link rel="stylesheet" href="css/story.css" />
+  <link rel="stylesheet" href="css/motion.css" />
   <script src="https://unpkg.com/lucide@0.468.0" defer></script>
 </head>
 <body class="font-body antialiased">
@@ -50,7 +51,7 @@
     <button type="button" data-nav="finale" class="focus-ring rounded-full px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-ui cursor-pointer text-[var(--muted)] hover:text-white whitespace-nowrap">০৪ অ্যাডভেঞ্চার</button>
   </nav>
 
-  <p class="kbd-hint" role="note">কীবোর্ড: <kbd>Alt</kbd> + তীর দিয়ে সেকশন বদলান। গল্পে তীর দিয়ে অধ্যায় বদলান। <kbd>Esc</kbd> দিয়ে মোডাল বন্ধ।</p>
+  <p id="kbdHint" class="kbd-hint" role="note">কীবোর্ড: <kbd>Alt</kbd> + তীর দিয়ে সেকশন বদলান। গল্পে তীর দিয়ে অধ্যায় বদলান। <kbd>Esc</kbd> দিয়ে মোডাল বন্ধ।</p>
 
   <div id="appShell">
   <!-- 01 Intro -->
@@ -64,6 +65,21 @@
         decoding="async"
       />
       <div class="hero-mask absolute inset-0"></div>
+      <div class="hero-glow absolute inset-0" aria-hidden="true"></div>
+      <svg class="hero-flight" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+        <defs>
+          <mask id="heroFlightMask" maskUnits="userSpaceOnUse" x="-100" y="0" width="1200" height="560">
+            <rect class="hero-flight__reveal" x="-100" y="0" width="1200" height="560" fill="#fff" />
+          </mask>
+        </defs>
+        <path id="heroFlightPath" class="hero-flight__trail" mask="url(#heroFlightMask)" d="M -60 300 C 220 150, 480 40, 1060 120" />
+        <g class="hero-flight__plane">
+          <path d="M0 0 L-14 -6 L-9 0 L-14 6 Z" />
+          <animateMotion id="heroFlightMotion" dur="4.2s" begin="indefinite" rotate="auto" calcMode="spline" keyTimes="0;1" keySplines="0.42 0 0.28 1" fill="freeze">
+            <mpath href="#heroFlightPath" />
+          </animateMotion>
+        </g>
+      </svg>
       <div class="relative z-10 w-full max-w-7xl mx-auto px-4 py-24">
         <div class="intro-hero-grid">
           <div class="intro-hero-copy">
@@ -77,37 +93,52 @@
                 fetchpriority="high"
                 decoding="async"
               />
-              <p class="font-ui text-amber-200 tracking-[0.28em] text-xs md:text-sm mt-4">অ্যানিভার্সারি ট্যুর ২০২৬</p>
+              <p class="hero-eyebrow font-ui text-amber-200 tracking-[0.06em] text-xs md:text-sm mt-4">অ্যানিভার্সারি ট্যুর ২০২৬</p>
             </div>
             <h1 class="hero-enter font-display text-4xl sm:text-5xl md:text-6xl xl:text-7xl leading-[1.15]" style="--hero-i:1">
-              ছয়টা গল্প।<br />একটা অবিস্মরণীয় যাত্রা।
+              <span class="hl"><span class="hl__in">ছয়টা গল্প।</span></span>
+              <span class="hl"><span class="hl__in">একটা অবিস্মরণীয় যাত্রা।</span></span>
             </h1>
-            <p class="playful-tagline hero-enter mt-5" role="doc-subtitle" style="--hero-i:2">
+            <p class="playful-tagline hero-enter mt-5" role="doc-subtitle" style="--hero-i:4">
               <span class="playful-tagline__text">AI কাজ করুক, আমরা ঘুরতে যাই!</span>
               <span class="playful-tagline__emoji" aria-hidden="true">🤖✈️</span>
             </p>
-            <p class="hero-enter mt-6 text-lg md:text-xl text-[var(--muted)] leading-relaxed" style="--hero-i:3">
+            <p class="hero-enter mt-6 text-lg md:text-xl text-[var(--muted)] leading-relaxed" style="--hero-i:5">
               আমরা ছয়টা জায়গা দেখছি না—ছয়টা সম্ভাব্য অ্যাডভেঞ্চারের গল্প দেখছি।
             </p>
 
-            <div class="hero-enter mt-10 flex flex-wrap items-center gap-6" style="--hero-i:4">
-              <div class="flex items-center gap-3 rounded-full border border-[var(--line)] bg-black/30 px-5 py-3">
+            <div class="hero-enter mt-10 flex flex-wrap items-center gap-6" style="--hero-i:6">
+              <div class="route-pill flex items-center gap-3 rounded-full border border-[var(--line)] bg-black/30 px-5 py-3">
                 <span class="font-ui text-teal-300">ঢাকা</span>
                 <svg width="80" height="24" viewBox="0 0 80 24" aria-hidden="true">
-                  <path class="route-dash" d="M4 12 H70" stroke="#E9B44C" stroke-width="2" fill="none" />
-                  <circle cx="72" cy="12" r="4" fill="#E9B44C" />
+                  <path class="route-dash route-draw" d="M4 12 H70" pathLength="70" stroke="#E9B44C" stroke-width="2" fill="none" />
+                  <circle class="route-dot" cx="72" cy="12" r="4" fill="#E9B44C" />
                 </svg>
-                <span class="font-display text-xl text-amber-200">?</span>
+                <span class="route-q dest-board inline-block font-display text-xl text-amber-200" id="destBoard" aria-label="গন্তব্য: এখনো ঠিক হয়নি"><span class="dest-board__track"><span class="dest-board__item">?</span></span></span>
               </div>
               <button id="startJourney" type="button" class="btn-primary focus-ring inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-medium cursor-pointer">
                 গল্পগুলো দেখুন
                 <i data-lucide="arrow-right" class="w-5 h-5" aria-hidden="true"></i>
               </button>
             </div>
-            <p id="metaNote" class="hero-enter mt-8 text-sm text-[var(--muted)]" style="--hero-i:5"></p>
+            <dl class="briefing hero-enter" style="--hero-i:7" aria-label="ট্যুরের সংক্ষিপ্ত তথ্য">
+              <div class="briefing__item">
+                <dt class="briefing__label order-2">সম্ভাব্য পছন্দ</dt>
+                <dd class="briefing__value order-1"><span id="briefChoices">৬</span></dd>
+              </div>
+              <div class="briefing__item">
+                <dt class="briefing__label order-2">অ্যাডভেঞ্চার দৈর্ঘ্য</dt>
+                <dd class="briefing__value order-1"><span id="briefDuration"></span></dd>
+              </div>
+              <div class="briefing__item">
+                <dt class="briefing__label order-2">সম্ভাব্য ভ্রমণ জানালা</dt>
+                <dd class="briefing__value order-1"><span id="briefWindow"></span></dd>
+              </div>
+            </dl>
+            <p id="metaNote" class="hero-enter mt-5 text-sm text-[var(--muted)]" style="--hero-i:8"></p>
           </div>
 
-          <aside id="liveVote" class="live-vote intro-hero-vote hero-enter" style="--hero-i:3" aria-labelledby="liveVoteTitle" aria-live="polite">
+          <aside id="liveVote" class="live-vote intro-hero-vote hero-enter" style="--hero-i:6" aria-labelledby="liveVoteTitle" aria-live="polite">
             <div class="live-vote__head">
               <div class="live-vote__title-row">
                 <h2 id="liveVoteTitle" class="font-display text-2xl md:text-3xl">🗳️ লাইভ ফলাফল</h2>
@@ -127,12 +158,12 @@
   <!-- 02 Destinations -->
   <section class="view" data-view="destinations" aria-label="ছয়টি গন্তব্য">
     <div class="min-h-screen max-w-6xl mx-auto px-4 py-24">
-      <p class="reveal font-ui text-teal-300 text-sm tracking-wide mb-3">০২ · ছয়টি পছন্দ</p>
-      <h2 class="reveal font-display text-4xl md:text-5xl mb-3">কোন অ্যাডভেঞ্চারে যাব?</h2>
-      <p class="reveal text-[var(--muted)] max-w-2xl mb-10">প্রতিটি কার্ড একটা আলাদা গল্প। ক্লিক করে অনুভব করুন—কোথায় আমাদের স্মৃতি জমতে পারে।</p>
+      <p class="dest-in eyebrow-wipe font-ui text-teal-300 text-sm tracking-wide mb-3" style="--di:0">০২ · ছয়টি পছন্দ</p>
+      <h2 class="font-display text-4xl md:text-5xl mb-3"><span class="line-up"><span>কোন অ্যাডভেঞ্চারে যাব?</span></span></h2>
+      <p class="dest-in text-[var(--muted)] max-w-2xl mb-10" style="--di:2">প্রতিটি কার্ড একটা আলাদা গল্প। ক্লিক করে অনুভব করুন—কোথায় আমাদের স্মৃতি জমতে পারে।</p>
       <div id="destGrid" class="dest-grid grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
       <div class="mt-12 flex flex-wrap gap-3">
-        <button type="button" data-nav="finale" class="btn-ghost focus-ring rounded-full px-5 py-3 cursor-pointer">সরাসরি পছন্দে যান</button>
+        <button type="button" data-nav="finale" class="btn-ghost focus-ring rounded-full px-5 py-3 cursor-pointer inline-flex items-center gap-2">সরাসরি পছন্দে যান <i data-lucide="arrow-right" class="w-4 h-4" aria-hidden="true"></i></button>
       </div>
     </div>
   </section>
@@ -153,11 +184,14 @@
   <!-- 04 Finale / Vote -->
   <section class="view" data-view="finale" aria-label="ভোট ও চূড়ান্ত অ্যাডভেঞ্চার">
     <div class="min-h-screen max-w-6xl mx-auto px-4 py-24">
-      <p class="reveal font-ui text-teal-300 text-sm tracking-wide mb-3">০৪ · আমাদের অ্যাডভেঞ্চার</p>
-      <h2 class="reveal font-display text-4xl md:text-6xl mb-4 max-w-3xl leading-tight">তাহলে—কোথায় যাচ্ছি?</h2>
-      <p class="reveal text-[var(--muted)] max-w-2xl mb-10">
-        একটা গন্তব্যে ভোট দিন। প্রতি ডিভাইসে এক সক্রিয় ভোট—চাইলে বদলান বা বাতিল করতে পারবেন।
-      </p>
+      <div class="finale-head">
+        <svg class="finale-route" aria-hidden="true" focusable="false"></svg>
+        <p class="finale-in font-ui text-teal-300 text-sm tracking-wide mb-3" style="--fi:0">০৪ · আমাদের অ্যাডভেঞ্চার</p>
+        <h2 class="font-display text-4xl md:text-6xl mb-4 max-w-3xl leading-tight"><span class="line-up finale-line"><span>তাহলে—কোথায় যাচ্ছি?</span></span></h2>
+        <p class="finale-in text-[var(--muted)] max-w-2xl mb-10" style="--fi:2">
+          একটা গন্তব্যে ভোট দিন। প্রতি ডিভাইসে এক সক্রিয় ভোট—চাইলে বদলান বা বাতিল করতে পারবেন।
+        </p>
+      </div>
 
       <div id="voteStatus" class="vote-status mb-8 hidden" role="status" aria-live="polite"></div>
       <div id="voteActions" class="vote-actions mb-8 hidden" aria-live="polite"></div>
@@ -165,6 +199,7 @@
       <div id="finaleGrid" class="dest-grid grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
       <div id="voteResults" class="vote-results mt-12 hidden" aria-live="polite"></div>
+      <div id="voteEnding" class="ending-card mt-8 hidden" aria-live="polite"></div>
 
       <p id="voteNote" class="mt-6 text-sm text-[var(--muted)]" role="status" aria-live="polite"></p>
     </div>
@@ -177,7 +212,9 @@
 
   <div id="attrModal" class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="max-w-lg w-full rounded-2xl bg-[var(--surface)] border border-[var(--line)] overflow-hidden">
-      <img id="modalImg" src="" alt="" class="h-48 w-full object-cover" />
+      <div class="img-shimmer h-48">
+        <img id="modalImg" src="" alt="" class="h-48 w-full object-cover" data-fade />
+      </div>
       <div class="p-5 space-y-3">
         <h3 id="modalTitle" class="font-display text-2xl"></h3>
         <p id="modalDesc" class="text-[var(--muted)] text-sm leading-relaxed"></p>
@@ -208,6 +245,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/data.js"></script>
   <script src="js/voteService.js"></script>
+  <script src="js/motion.js"></script>
   <script src="js/app.js"></script>
   <script>
     window.addEventListener("load", () => {

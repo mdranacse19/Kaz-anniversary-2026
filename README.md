@@ -34,6 +34,19 @@ python3 -m http.server 8765
 
 `Browser JS → Firebase Firestore → shared votes`
 
+### মোশন সিস্টেম (কোনো লাইব্রেরি নেই)
+
+- `css/motion.css` — motion tokens (`--dur-*`, `--ease-*`, `--mv` দূরত্ব-গুণক), প্রতিটি সেকশনের আলাদা entrance, কার্ড hover, চ্যাপ্টার page-turn, ফাইনালের রুট, reduced-motion ও mobile টিউনিং
+- `js/motion.js` — `window.Motion`: view exit, nav/tab pill, shared-element open (কার্ড ছবি → গল্পের হেডার), journey wipe (CTA), page turn, count-up, dust, card cursor
+- `prefers-reduced-motion: reduce` → শুধু opacity, কোনো movement/loop নেই
+- Deep link: `#destinations`, `#story/<id>`, `#finale`
+- ভোটের পর: বোর্ডিং পাস + স্ট্যাম্প, রুটে ঢাকা → আপনার গন্তব্যে ট্রাভেলার, "দেখা হবে ২৫ ডিসেম্বর" কার্ড (দিন গণনা)
+- পাসপোর্ট: কোনো গল্পের ৫টি অধ্যায় পড়লে চ্যাপ্টার বারে স্ট্যাম্প ও ফাইনাল রুটে "পড়া হয়েছে ✓" চিহ্ন (`localStorage` কী `kaz2026.passport`, শুধু এই ডিভাইসে)
+- ফাইনাল রুট JS দিয়ে আঁকা হয় (`renderFinaleRoute`), কন্টেইনারের আসল পিক্সেল প্রস্থে
+- গল্প: ট্যাব বারের নিচে অধ্যায়-প্রগ্রেস লাইন, "পরবর্তী · <অধ্যায়>" বোতাম, অনুভূতির লাইন একে একে আসে, করব-এর আইকন নিজে আঁকা হয়, হেডারের ছবি স্ক্রলে ধীরে সরে (`animation-timeline: view()`)
+- ফাইনাল: ভোট ব্যাজ পুরোনো থেকে নতুন সংখ্যায় গোনে, ফলাফলের বারে "+১" ভাসে
+- হিরো: রুট পিলের "?" একটি ডিপারচার বোর্ড (ছয় গন্তব্য ঘুরে আবার "?"), এন্ট্রান্সের পর একবার কাগজের প্লেন উড়ে যায় (ডেস্কটপ), গ্লো ব্রিদিং, পয়েন্টার প্যারালাক্স (`Motion.departureBoard/heroFlight/heroParallax`)
+
 - লাইভ কাউন্ট JavaScript দিয়ে `votes` কালেকশন থেকে হিসাব  
 - Change / Undo একই `votes/{uid}` ডকুমেন্ট আপডেট/ডিলিট  
 - Anonymous Auth UID = voter id (ভোট কাউন্ট localStorage-এ নয়)  

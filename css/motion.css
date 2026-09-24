@@ -1,0 +1,2108 @@
+/* KAZ Anniversary Tour 2026 — motion system
+   Loaded after story.css. Owns: motion tokens, view choreography, hero sequence,
+   destination card interaction, shared-element open, story chapter turns,
+   finale route, nav pill, custom cursor, ambient particles.
+   Every non-trivial animation is gated on html.js-motion (set only when
+   prefers-reduced-motion is not "reduce"). Reduced motion keeps opacity only. */
+
+:root {
+  /* Duration scale */
+  --dur-fast: 160ms;      /* hover, press, tab swap */
+  --dur-normal: 320ms;    /* view exit, panel swap */
+  --dur-emph: 560ms;      /* card entrance, modal, confirm */
+  --dur-cine: 900ms;      /* hero, story header, finale route */
+  /* Easing */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-soft-spring: cubic-bezier(0.34, 1.3, 0.64, 1);
+  /* Distance multiplier — mobile shrinks travel, reduced motion zeroes it */
+  --mv: 1;
+  --lift: -6px;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --mv: 0.55;
+    --lift: -3px;
+  }
+}
+
+/* ————————————————————————————————————————————————
+   1. View transitions — each view enters with its own rhythm
+   ———————————————————————————————————————————————— */
+
+html.js-motion .view.active {
+  animation: none; /* replaced per view below */
+}
+
+/* Generic fallback (story/any) — quiet fade + short rise */
+html.js-motion .view.active {
+  animation: viewRise var(--dur-normal) var(--ease-out) both;
+}
+html.js-motion .view.active[data-enter="back"] {
+  animation-name: viewRiseBack;
+}
+@keyframes viewRise {
+  from { opacity: 0; transform: translateY(calc(10px * var(--mv))); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes viewRiseBack {
+  from { opacity: 0; transform: translateY(calc(-8px * var(--mv))); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Intro: the section itself does not move; its children choreograph */
+html.js-motion .view[data-view="intro"].active {
+  animation: viewFade 400ms ease-out both;
+}
+@keyframes viewFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Story arriving under a shared-element clone: fade only, the clone carries the motion */
+html.js-motion .view[data-view="story"].active.is-shared {
+  animation: viewFade 300ms ease-out both;
+}
+
+/* Exit — applied by JS via WAAPI; this class only pins state for the last frame */
+.view.is-exiting {
+  pointer-events: none;
+}
+
+/* ————————————————————————————————————————————————
+   2. Hero — cinematic opening (~2s), then ambient life
+   ———————————————————————————————————————————————— */
+
+.intro-stage {
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Background image: dolly in, then very slow drift forever */
+html.js-motion .view[data-view="intro"] .hero-parallax {
+  opacity: 0;
+  transform: scale(1.08);
+}
+html.js-motion .view[data-view="intro"].is-hero-ready .hero-parallax {
+  animation:
+    heroImgIn 1400ms var(--ease-out-expo) both,
+    heroDrift 48s 1400ms ease-in-out alternate infinite;
+}
+@keyframes heroImgIn {
+  from { opacity: 0; transform: scale(1.08); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes heroDrift {
+  from { transform: scale(1) translate3d(0, 0, 0); }
+  to { transform: scale(1.05) translate3d(-1.2%, -0.8%, 0); }
+}
+/* story.css defined a slowZoom on the same element — motion.css owns it now */
+@media (prefers-reduced-motion: no-preference) {
+  .view[data-view="intro"].active .hero-parallax {
+    animation-name: heroImgIn, heroDrift;
+  }
+}
+
+/* Mask settles slightly after the image so the bottom fade "lands" */
+html.js-motion .view[data-view="intro"] .hero-mask {
+  opacity: 0;
+}
+html.js-motion .view[data-view="intro"].is-hero-ready .hero-mask {
+  animation: viewFade 900ms 100ms ease-out both;
+}
+
+/* Sequence: each .hero-enter carries --hero-i; the timeline below maps
+   index → delay so the order reads: brand → tagline-eyebrow → headline lines
+   → playful tagline → support → route+CTA → briefing */
+html.js-motion .view[data-view="intro"] .hero-enter {
+  opacity: 0;
+  transform: translateY(calc(18px * var(--mv)));
+}
+html.js-motion .view[data-view="intro"].is-hero-ready .hero-enter {
+  animation: heroRise 720ms var(--ease-out-expo) both;
+  animation-delay: calc(220ms + var(--hero-i, 0) * 170ms);
+}
+@keyframes heroRise {
+  from { opacity: 0; transform: translateY(calc(18px * var(--mv))); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Brand: fade through a soft blur — feels like a lens pulling focus */
+html.js-motion .view[data-view="intro"] .hero-brand {
+  filter: blur(8px);
+}
+html.js-motion .view[data-view="intro"].is-hero-ready .hero-brand {
+  animation: heroBrandIn 900ms var(--ease-out-expo) both;
+  animation-delay: 220ms;
+}
+@keyframes heroBrandIn {
+  from { opacity: 0; transform: translateY(calc(10px * var(--mv))); filter: blur(8px); }
+  60% { filter: blur(0); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+/* Bengali conjuncts break under letter-spacing, so the eyebrow reveals with a
+   clip wipe instead of tracking */
+html.js-motion .view[data-view="intro"] .hero-eyebrow {
+  opacity: 0;
+  clip-path: inset(0 100% 0 0);
+}
+html.js-motion .view[data-view="intro"].is-hero-ready .hero-eyebrow {
+  animation: eyebrowWipe 800ms var(--ease-out-expo) 480ms both;
+}
+@keyframes eyebrowWipe {
+  from { opacity: 0; clip-path: inset(0 100% 0 0); }
+  30% { opacity: 1; }
+  to { opacity: 1; clip-path: inset(0 -2% 0 0); }
+}
+
+/* Headline: two lines, each masked and lifted into view */
+.hl {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em; /* Bengali descenders */
+  margin-bottom: -0.08em;
+}
+.hl__in {
+  display: block;
+}
+html.js-motion .view[data-view="intro"] .hl__in {
+  transform: translateY(110%);
+}
+html.js-motion .view[data-view="intro"].is-hero-ready .hl__in {
+  animation: lineUp 900ms var(--ease-out-expo) both;
+}
+html.js-motion .view[data-view="intro"].is-hero-ready .hl:nth-child(1) .hl__in { animation-delay: 640ms; }
+html.js-motion .view[data-view="intro"].is-hero-ready .hl:nth-child(2) .hl__in { animation-delay: 780ms; }
+@keyframes lineUp {
+  from { transform: translateY(110%); }
+  to { transform: none; }
+}
+/* The h1 wrapper itself must not double-animate */
+html.js-motion .view[data-view="intro"] h1.hero-enter {
+  opacity: 1;
+  transform: none;
+}
+html.js-motion .view[data-view="intro"].is-hero-ready h1.hero-enter {
+  animation: none;
+}
+
+/* Route pill: the line draws, then the "?" arrives */
+.route-pill .route-dash {
+  stroke-dasharray: 6 8;
+}
+html.js-motion .view[data-view="intro"] .route-draw {
+  stroke-dasharray: 70;
+  stroke-dashoffset: 70;
+}
+html.js-motion .view[data-view="intro"].is-hero-ready .route-draw {
+  animation: routeDraw 900ms var(--ease-out-expo) 1350ms both;
+}
+@keyframes routeDraw {
+  to { stroke-dashoffset: 0; }
+}
+html.js-motion .view[data-view="intro"] .route-dot,
+html.js-motion .view[data-view="intro"] .route-q {
+  opacity: 0;
+  transform: scale(0.6);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+html.js-motion .view[data-view="intro"].is-hero-ready .route-dot {
+  animation: popIn 500ms var(--ease-soft-spring) 2050ms both;
+}
+html.js-motion .view[data-view="intro"].is-hero-ready .route-q {
+  animation: popIn 500ms var(--ease-soft-spring) 2150ms both;
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+/* After the draw completes the dashed line keeps its slow crawl (story.css) */
+html.js-motion .view[data-view="intro"].is-hero-ready .route-draw.route-dash {
+  animation: routeDraw 900ms var(--ease-out-expo) 1350ms both, dash 18s 2250ms linear infinite;
+}
+
+/* Briefing row (three facts) — value text lifts out of a mask like the headline */
+.briefing {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 2.25rem;
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  max-width: 34rem;
+}
+.briefing__item {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.briefing__value {
+  display: block;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  line-height: 1.3;
+  color: #f0d78c;
+  font-variant-numeric: tabular-nums;
+}
+.briefing__value > span {
+  display: block;
+}
+.briefing__label {
+  display: block;
+  margin-top: 0.15rem;
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+html.js-motion .view[data-view="intro"] .briefing__value > span {
+  transform: translateY(110%);
+}
+html.js-motion .view[data-view="intro"].is-hero-ready .briefing__value > span {
+  animation: lineUp 700ms var(--ease-out-expo) both;
+}
+html.js-motion .view[data-view="intro"].is-hero-ready .briefing__item:nth-child(1) .briefing__value > span { animation-delay: 1500ms; }
+html.js-motion .view[data-view="intro"].is-hero-ready .briefing__item:nth-child(2) .briefing__value > span { animation-delay: 1580ms; }
+html.js-motion .view[data-view="intro"].is-hero-ready .briefing__item:nth-child(3) .briefing__value > span { animation-delay: 1660ms; }
+
+/* Live results aside: arrives from the right, a beat after the copy */
+html.js-motion .view[data-view="intro"] .intro-hero-vote.hero-enter {
+  transform: translate3d(calc(24px * var(--mv)), calc(8px * var(--mv)), 0) scale(0.985);
+}
+html.js-motion .view[data-view="intro"].is-hero-ready .intro-hero-vote.hero-enter {
+  animation: asideIn 900ms var(--ease-out-expo) 1150ms both;
+}
+@keyframes asideIn {
+  from { opacity: 0; transform: translate3d(calc(24px * var(--mv)), calc(8px * var(--mv)), 0) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Ambient dust — created by JS, only on fine pointers / wide viewports */
+.dust {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.dust i {
+  position: absolute;
+  left: var(--x);
+  bottom: -2%;
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(240, 215, 140, 0.9), rgba(240, 215, 140, 0));
+  opacity: 0;
+  animation: dustRise var(--d) linear var(--delay) infinite;
+  will-change: transform, opacity;
+}
+@keyframes dustRise {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  12% { opacity: 0.55; }
+  60% { opacity: 0.35; }
+  100% { transform: translate3d(var(--dx), -108vh, 0); opacity: 0; }
+}
+
+/* ————————————————————————————————————————————————
+   3. Buttons & controls — every interactive thing answers the hand
+   ———————————————————————————————————————————————— */
+
+.btn-primary,
+.btn-ghost {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    background 200ms ease,
+    border-color 200ms ease,
+    box-shadow 240ms ease,
+    color 200ms ease;
+}
+.btn-primary svg,
+.btn-ghost svg,
+.btn-primary i,
+.btn-ghost i {
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+/* Sheen sweep on primary — one pass, on hover only */
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    transform: translateY(var(--lift));
+    box-shadow: 0 12px 28px rgba(233, 180, 76, 0.28);
+  }
+  html.js-motion .btn-primary:hover::after {
+    transition: transform 620ms var(--ease-out);
+    transform: translateX(120%);
+  }
+  .btn-primary:hover svg,
+  .btn-primary:hover i {
+    transform: translateX(4px);
+  }
+  .btn-ghost:hover {
+    transform: translateY(-2px);
+  }
+  .btn-ghost:hover svg[data-lucide="arrow-left"],
+  .btn-ghost:hover i[data-lucide="arrow-left"] {
+    transform: translateX(-3px);
+  }
+}
+.btn-primary:active,
+.btn-ghost:active {
+  transform: scale(0.97);
+  transition-duration: 60ms;
+}
+
+/* Nav: sliding pill under the active section */
+.float-nav {
+  position: fixed;
+  /* left:50% + translate would otherwise shrink-to-fit into half the viewport */
+  width: max-content;
+  max-width: 96vw;
+}
+.nav-pill {
+  position: absolute;
+  top: 0.5rem;
+  left: 0;
+  height: calc(100% - 1rem);
+  width: 0;
+  border-radius: 9999px;
+  background: rgba(233, 180, 76, 0.14);
+  border: 1px solid rgba(233, 180, 76, 0.22);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(0);
+  z-index: 0;
+}
+html.js-motion .nav-pill {
+  transition:
+    transform 420ms var(--ease-out-expo),
+    width 420ms var(--ease-out-expo),
+    opacity 200ms ease;
+}
+.nav-pill.is-ready {
+  opacity: 1;
+}
+.float-nav > button {
+  position: relative;
+  z-index: 1;
+}
+/* Phones: the whole route must fit without a horizontal scroll */
+@media (max-width: 480px) {
+  nav.float-nav {
+    padding: 0.3rem 0.35rem;
+    gap: 0;
+    max-width: calc(100vw - 1.5rem);
+  }
+  .float-nav .brand-mark {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+  }
+  .float-nav .brand-mark img {
+    width: 3.3rem;
+  }
+  .float-nav .nav-divider {
+    margin: 0 0.1rem;
+  }
+  .float-nav button:not(.brand-mark) {
+    padding: 0.5rem 0.5rem;
+    min-height: 2.125rem;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    letter-spacing: 0;
+  }
+  .nav-pill {
+    top: 0.3rem;
+    height: calc(100% - 0.6rem);
+  }
+}
+.float-nav button:not(.brand-mark)[aria-current="page"] {
+  color: #f0d78c;
+}
+
+/* ————————————————————————————————————————————————
+   4. Destination cards — the strongest interaction on the site
+   ———————————————————————————————————————————————— */
+
+.dest-card {
+  --accent: var(--amber);
+  position: relative;
+  transition:
+    transform var(--dur-normal) var(--ease-out-expo),
+    border-color 260ms ease,
+    box-shadow var(--dur-normal) var(--ease-out),
+    opacity 280ms ease;
+}
+.dest-card .card-frame {
+  position: relative;
+  overflow: hidden;
+}
+.dest-card .card-media {
+  transform-origin: 50% 60%;
+  transition: transform 900ms var(--ease-out-expo);
+  will-change: transform;
+}
+.dest-card .card-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10, 18, 16, 0) 35%, rgba(10, 18, 16, 0.55) 75%, var(--surface) 100%);
+  transition: opacity 400ms ease;
+}
+.dest-card .card-accent {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 520ms var(--ease-out-expo);
+}
+.dest-card .card-go {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  background: var(--amber);
+  color: var(--ink);
+  opacity: 0;
+  transform: translate3d(-8px, 8px, 0) scale(0.8);
+  transition:
+    opacity 260ms ease,
+    transform 420ms var(--ease-out-expo);
+}
+.dest-card .card-go svg,
+.dest-card .card-go i {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+.dest-card h3,
+.dest-card .card-tagline {
+  transition: transform 420ms var(--ease-out-expo), color 260ms ease;
+}
+.dest-card .card-tagline {
+  opacity: 0.85;
+  transition: opacity 260ms ease, transform 420ms var(--ease-out-expo);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dest-card:hover {
+    transform: translateY(-8px) scale(1.015);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    box-shadow:
+      0 24px 48px rgba(0, 0, 0, 0.36),
+      0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  .dest-card:hover .card-media {
+    transform: scale(1.07) translate3d(0, -1.5%, 0);
+  }
+  .dest-card:hover .card-shade {
+    opacity: 0.85;
+  }
+  .dest-card:hover .card-accent {
+    transform: scaleX(1);
+  }
+  .dest-card:hover .card-go {
+    opacity: 1;
+    transform: none;
+  }
+  .dest-card:hover h3 {
+    transform: translateY(-3px);
+  }
+  .dest-card:hover .card-tagline {
+    opacity: 1;
+    transform: translateY(-2px);
+    color: var(--accent);
+  }
+  /* Brochures on a table: hovering one quiets the others, keeps them readable */
+  .dest-grid:hover > .dest-card:not(:hover):not(.selected):not(.vote-card--dim) {
+    opacity: 0.72;
+  }
+  .dest-card:focus-visible .card-go {
+    opacity: 1;
+    transform: none;
+  }
+}
+.dest-card:active {
+  transform: scale(0.985);
+  transition-duration: 60ms;
+}
+/* Touch: brief press feedback only */
+@media (hover: none) {
+  .dest-card:active .card-media {
+    transform: scale(1.03);
+    transition-duration: 200ms;
+  }
+}
+
+/* Entrance: cards arrive from slightly different places, settle to grid.
+   A keyframe animation (not a transition) so the per-card delay is honoured,
+   with fill-mode backwards so hover transforms are free once it has landed. */
+html.js-motion .dest-grid .dest-card.reveal:not(.visible) {
+  opacity: 0;
+  transform: translate3d(calc(var(--ox, 0px) * var(--mv)), calc(28px * var(--mv)), 0) rotate(calc(var(--rot, 0deg) * var(--mv))) scale(0.96);
+  transition: none;
+}
+html.js-motion .dest-grid .dest-card.reveal.visible {
+  animation: cardIn 720ms var(--ease-out-expo) calc(var(--i, 0) * 75ms) backwards;
+}
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translate3d(calc(var(--ox, 0px) * var(--mv)), calc(28px * var(--mv)), 0) rotate(calc(var(--rot, 0deg) * var(--mv))) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.dest-grid > .dest-card:nth-child(3n + 1) { --ox: -18px; --rot: -1.2deg; }
+.dest-grid > .dest-card:nth-child(3n + 2) { --ox: 0px; --rot: 0deg; }
+.dest-grid > .dest-card:nth-child(3n + 3) { --ox: 18px; --rot: 1.2deg; }
+/* Section heading rises first; cards follow (delays above start at 0 relative to their own IO trigger) */
+
+/* Lazy images: shimmer placeholder, then fade in on load */
+.img-shimmer {
+  background:
+    linear-gradient(100deg, rgba(255, 255, 255, 0) 40%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0) 60%) 0 0 / 220% 100%,
+    var(--surface-2);
+}
+html.js-motion .img-shimmer:not(.is-loaded) {
+  animation: shimmer 1.6s linear infinite;
+}
+@keyframes shimmer {
+  from { background-position: 120% 0, 0 0; }
+  to { background-position: -120% 0, 0 0; }
+}
+img[data-fade] {
+  opacity: 0;
+  transition: opacity 420ms ease;
+}
+img[data-fade].is-loaded {
+  opacity: 1;
+}
+
+/* Shared-element clone: card image flying into the story header */
+.shared-media {
+  position: fixed;
+  z-index: 39;
+  overflow: hidden;
+  border-radius: 1rem;
+  pointer-events: none;
+  will-change: top, left, width, height, border-radius;
+  background: var(--surface);
+}
+.shared-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.shared-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10, 18, 16, 0.35) 0%, rgba(10, 18, 16, 0.75) 55%, #0a1210 100%);
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+.shared-media.is-landing::after {
+  opacity: 1;
+}
+
+/* Custom cursor for cards (desktop, fine pointer only) */
+.cursor-dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 70;
+  width: 3.4rem;
+  height: 3.4rem;
+  margin: -1.7rem 0 0 -1.7rem;
+  border-radius: 9999px;
+  background: rgba(233, 180, 76, 0.92);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(var(--cx, -100px), var(--cy, -100px), 0) scale(0.6);
+  transition: opacity 180ms ease, transform 180ms var(--ease-out);
+  will-change: transform;
+  mix-blend-mode: normal;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cursor-dot {
+    display: inline-flex;
+  }
+}
+.cursor-dot {
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1;
+}
+.cursor-dot__icon svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  stroke-width: 2.2;
+}
+.cursor-dot__icon:empty {
+  display: none;
+}
+.cursor-dot.is-on {
+  opacity: 1;
+  transform: translate3d(var(--cx), var(--cy), 0) scale(1);
+  transition: opacity 180ms ease, transform 60ms linear;
+}
+.cursor-dot.is-down {
+  transform: translate3d(var(--cx), var(--cy), 0) scale(0.82);
+}
+html.has-card-cursor .dest-card,
+html.has-card-cursor .dest-card * {
+  cursor: none;
+}
+
+/* ————————————————————————————————————————————————
+   5. Story — chapter opening & page turns
+   ———————————————————————————————————————————————— */
+
+.story-hero {
+  overflow: clip; /* clip, not hidden: hidden would make the header a scroll container and freeze the view() timeline */
+}
+.story-hero__img {
+  transform-origin: 50% 40%;
+  will-change: transform;
+}
+.story-hero__img.is-hidden {
+  opacity: 0;
+}
+.story-hero h1 {
+  padding-bottom: 0.1em;
+}
+html.js-motion .view[data-view="story"].active .story-hero__img {
+  animation:
+    storyImgIn 1300ms var(--ease-out-expo) both,
+    storyDrift 40s 1300ms ease-in-out alternate infinite;
+}
+html.js-motion .view[data-view="story"].active.is-shared .story-hero__img {
+  animation: storyDrift 40s ease-in-out alternate infinite; /* clone already did the dolly */
+}
+@keyframes storyImgIn {
+  from { transform: scale(1.06); }
+  to { transform: scale(1); }
+}
+@keyframes storyDrift {
+  from { transform: scale(1) translate3d(0, 0, 0); }
+  to { transform: scale(1.04) translate3d(0.8%, -1%, 0); }
+}
+html.js-motion .view[data-view="story"].active .story-in {
+  animation: heroRise 760ms var(--ease-out-expo) both;
+  animation-delay: calc(180ms + var(--si, 0) * 110ms);
+}
+html.js-motion .view[data-view="story"].active.is-shared .story-in {
+  animation-delay: calc(420ms + var(--si, 0) * 110ms);
+}
+.story-hero h1 {
+  overflow: hidden;
+}
+html.js-motion .view[data-view="story"].active .story-hero h1 > span {
+  display: block;
+  animation: lineUp 900ms var(--ease-out-expo) 260ms both;
+}
+html.js-motion .view[data-view="story"].active.is-shared .story-hero h1 > span {
+  animation-delay: 520ms;
+}
+
+/* Chapter tabs: sliding pill, like the nav */
+#chapterTabs {
+  position: relative;
+}
+/* Sticky bar sits under the floating nav. A sticky shield sibling pins to the
+   very top and covers the 3.5rem strip behind the nav, so chapter text never
+   shows through there. Out of the stuck state it hides behind the bar. */
+.story-tabs {
+  position: sticky;
+  top: 3.5rem;
+  z-index: 30;
+}
+.story-tabs-shield {
+  position: sticky;
+  /* Starts 3.5rem up inside the header's solid bottom padding (header has
+     pb-14), so when a chapter turn lands the heading flush under the bar the
+     shield already covers everything above it */
+  top: -3.5rem;
+  z-index: 29;
+  height: 7rem;
+  margin-top: -3.5rem;
+  margin-bottom: -3.5rem;
+  background: var(--bg);
+  pointer-events: none;
+}
+.tab-pill {
+  position: absolute;
+  top: 0.75rem;
+  left: 0;
+  height: calc(100% - 1.5rem);
+  width: 0;
+  border-radius: 9999px;
+  background: var(--surface-2);
+  border: 1px solid rgba(233, 180, 76, 0.18);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 0;
+}
+html.js-motion .tab-pill {
+  transition:
+    transform 380ms var(--ease-out-expo),
+    width 380ms var(--ease-out-expo),
+    opacity 200ms ease;
+}
+.tab-pill.is-ready {
+  opacity: 1;
+}
+#chapterTabs > button {
+  position: relative;
+  z-index: 1;
+  background: transparent !important; /* pill draws the surface */
+}
+#chapterTabs.has-more {
+  -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 82%, transparent 100%);
+}
+
+/* Chapter turn: panel exits via WAAPI, enters here — direction from JS */
+html.js-motion .chapter-panel.active {
+  animation: pageIn 420ms var(--ease-out-expo) both;
+}
+html.js-motion .chapter-panel.active.is-back {
+  animation-name: pageInBack;
+}
+@keyframes pageIn {
+  from { opacity: 0; transform: translate3d(calc(22px * var(--mv)), 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pageInBack {
+  from { opacity: 0; transform: translate3d(calc(-22px * var(--mv)), 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Spot cards (story "see" chapter): quieter cousin of the destination card */
+.spot-card {
+  position: relative;
+}
+.spot-card .spot-media {
+  transition: transform 800ms var(--ease-out-expo);
+}
+@media (hover: hover) and (pointer: fine) {
+  .spot-card:hover .spot-media {
+    transform: scale(1.06) translate3d(0, -1%, 0);
+  }
+  .spot-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Journey pacing cards: gentle horizontal stagger */
+html.js-motion .chapter-panel.active .journey-row {
+  animation: heroRise 560ms var(--ease-out-expo) both;
+  animation-delay: calc(120ms + var(--ji, 0) * 70ms);
+}
+
+/* ————————————————————————————————————————————————
+   6. Finale — route through six possibilities, then the vote
+   ———————————————————————————————————————————————— */
+
+.finale-head {
+  position: relative;
+}
+/* Rendered by app.js at the container's real pixel width (viewBox = px), so
+   dots, strokes and labels stay the same size at every viewport. */
+.finale-route {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: 1.5rem;
+  overflow: visible;
+}
+.finale-route path {
+  fill: none;
+  stroke: var(--amber);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 4 7;
+  opacity: 0.9;
+}
+.finale-route circle {
+  fill: var(--surface);
+  stroke: var(--amber);
+  stroke-width: 1.5;
+}
+.finale-route circle.route-start {
+  fill: var(--amber);
+}
+.finale-route text {
+  font-family: var(--font-body);
+  fill: #a8bbb4;
+}
+/* Route draws left → right via a mask rect that scales open */
+.finale-route .route-reveal {
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+html.js-motion .view[data-view="finale"].active .finale-route:not(.is-static) .route-reveal {
+  transform: scaleX(0);
+  animation: routeReveal 1300ms var(--ease-in-out) 80ms both;
+}
+@keyframes routeReveal {
+  to { transform: scaleX(1); }
+}
+
+html.js-motion .view[data-view="finale"].active .finale-route:not(.is-static) circle,
+html.js-motion .view[data-view="finale"].active .finale-route:not(.is-static) text {
+  opacity: 0;
+  transform: scale(0.5);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: popIn 480ms var(--ease-soft-spring) both;
+  animation-delay: calc(120ms + var(--ri, 0) * 120ms);
+}
+html.js-motion .view[data-view="finale"].active .finale-in {
+  animation: heroRise 720ms var(--ease-out-expo) both;
+  animation-delay: calc(200ms + var(--fi, 0) * 110ms);
+}
+html.js-motion .view[data-view="finale"].active {
+  animation: viewFade 320ms ease-out both;
+}
+/* Your own vote on the route — a personal marker, not a rank (radius set in JS) */
+.finale-route circle[data-dest] {
+  transition: fill 300ms ease, stroke 300ms ease;
+}
+.finale-route circle[data-dest].is-mine {
+  fill: var(--amber);
+  stroke: #fff6d6;
+}
+.finale-route text[data-dest].is-mine {
+  fill: #f0d78c;
+  font-weight: 600;
+}
+/* Finale cards enter slower and later than the destination grid */
+html.js-motion #finaleGrid .dest-card.reveal.visible {
+  animation: cardIn 820ms var(--ease-out-expo) calc(160ms + var(--i, 0) * 80ms) backwards;
+}
+
+/* Locked cards (you voted elsewhere) stay dimmed even once revealed */
+html.js-motion .vote-card.vote-card--dim.reveal.visible,
+.vote-card.vote-card--dim {
+  opacity: 0.55;
+}
+.vote-card .btn-ghost:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+  border-style: dashed;
+}
+
+/* Re-rendered after a vote: no entrance replay */
+html.js-motion #finaleGrid .dest-card.reveal.visible.is-settled {
+  animation: none;
+}
+/* Vote confirm: soft ring bloom in addition to the scale nudge (outranks cardIn) */
+.vote-card--confirmed,
+html.js-motion #finaleGrid .dest-card.reveal.visible.vote-card--confirmed {
+  animation: voteConfirm 560ms var(--ease-out) both;
+}
+@keyframes voteRing {
+  0% { box-shadow: 0 0 0 0 rgba(233, 180, 76, 0.55); }
+  100% { box-shadow: 0 0 0 22px rgba(233, 180, 76, 0); }
+}
+
+/* Vote status card: rise + slight scale so it reads as a new object */
+.vote-status--success,
+.vote-status--info,
+.vote-status--error {
+  animation: statusIn 460ms var(--ease-out-expo) both;
+}
+
+/* ————————————————————————————————————————————————
+   7. Journey wipe — CTA click: the route sweeps the screen
+   ———————————————————————————————————————————————— */
+
+.journey-wipe {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  /* Night on the left, dawn on the right: the sweep reads as ঢাকা at night → morning at the destination */
+  background:
+    radial-gradient(70% 60% at 100% 55%, rgba(233, 180, 76, 0.28), transparent 70%),
+    linear-gradient(90deg, #07101c 0%, #0b1822 38%, #1d2118 66%, #4a3416 100%);
+  display: none;
+  pointer-events: none;
+  clip-path: inset(0 100% 0 0);
+}
+.journey-wipe.is-on {
+  display: block;
+}
+.journey-wipe svg {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  transform: translateY(-50%);
+  overflow: visible;
+}
+.journey-wipe .wipe-line {
+  fill: none;
+  stroke: var(--amber);
+  stroke-width: 2;
+  stroke-dasharray: 6 9;
+  stroke-linecap: round;
+}
+.journey-wipe .wipe-dot {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 14px 2px rgba(233, 180, 76, 0.6);
+  will-change: transform;
+}
+.journey-wipe .wipe-label {
+  position: absolute;
+  top: calc(50% + 2.2rem);
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: #f0d78c;
+  opacity: 0;
+}
+
+/* Keyboard hint: visible for a few seconds, then only while keys are in use */
+.kbd-hint {
+  transition: opacity 300ms ease, transform 300ms var(--ease-out);
+}
+.kbd-hint.is-hidden {
+  opacity: 0;
+  transform: translate(-50%, 8px);
+}
+@media (min-width: 641px) {
+  .kbd-hint {
+    left: auto;
+    right: 1rem;
+    transform: none;
+    max-width: min(60vw, 36rem);
+  }
+  .kbd-hint.is-hidden {
+    transform: translateY(8px);
+  }
+}
+@media (hover: none) {
+  .kbd-hint {
+    display: none;
+  }
+}
+
+/* ————————————————————————————————————————————————
+   8. Modals — arrive from below with slight scale, exit faster
+   ———————————————————————————————————————————————— */
+
+.modal-backdrop > div {
+  transform: translateY(calc(18px * var(--mv))) scale(0.97);
+  transition:
+    transform 360ms var(--ease-out-expo),
+    opacity 260ms ease;
+}
+.modal-backdrop:not(.is-open) > div {
+  transition-duration: 200ms, 160ms;
+  transition-timing-function: var(--ease-in), ease;
+}
+#modalClose,
+#undoVoteCancel {
+  transition: transform var(--dur-fast) var(--ease-out), background 200ms ease, border-color 200ms ease;
+}
+
+/* ————————————————————————————————————————————————
+   9. Reduced motion — opacity only, nothing travels, nothing loops
+   ———————————————————————————————————————————————— */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mv: 0;
+    --lift: 0px;
+  }
+  .hl__in,
+  .briefing__value > span,
+  .story-hero h1 > span,
+  .hero-parallax,
+  .hero-mask,
+  .hero-brand,
+  .hero-eyebrow,
+  .route-draw,
+  .route-dot,
+  .route-q,
+  .card-media,
+  .story-hero__img,
+  .finale-route circle,
+  .finale-route text,
+  .finale-in,
+  .story-in,
+  .journey-row,
+  .dest-card,
+  .dest-card *,
+  .spot-card,
+  .btn-primary::after {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+  }
+  .hero-eyebrow {
+    clip-path: none !important;
+  }
+  .route-draw {
+    stroke-dashoffset: 0 !important;
+  }
+  .dust,
+  .cursor-dot,
+  .journey-wipe {
+    display: none !important;
+  }
+  img[data-fade] {
+    opacity: 1 !important;
+    transition: none !important;
+  }
+  .img-shimmer {
+    animation: none !important;
+  }
+  .kbd-hint {
+    transition: none;
+  }
+  .nav-pill,
+  .tab-pill {
+    transition: none !important;
+  }
+  .dest-grid:hover > .dest-card:not(:hover) {
+    opacity: 1;
+  }
+  .card-go {
+    opacity: 1 !important;
+  }
+}
+
+/* ————————————————————————————————————————————————
+   10. Mobile tuning — fewer simultaneous things, shorter travel
+   ———————————————————————————————————————————————— */
+
+@media (max-width: 640px) {
+  html.js-motion .view[data-view="intro"].is-hero-ready .hero-enter {
+    animation-duration: 560ms;
+    animation-delay: calc(160ms + var(--hero-i, 0) * 120ms);
+  }
+  html.js-motion .view[data-view="intro"].is-hero-ready .hl:nth-child(1) .hl__in { animation-delay: 420ms; }
+  html.js-motion .view[data-view="intro"].is-hero-ready .hl:nth-child(2) .hl__in { animation-delay: 520ms; }
+  html.js-motion .view[data-view="intro"].is-hero-ready .route-draw { animation-delay: 900ms; }
+  html.js-motion .view[data-view="intro"].is-hero-ready .route-draw.route-dash {
+    animation: routeDraw 700ms var(--ease-out-expo) 900ms both, dash 18s 1600ms linear infinite;
+  }
+  html.js-motion .view[data-view="intro"].is-hero-ready .route-dot { animation-delay: 1400ms; }
+  html.js-motion .view[data-view="intro"].is-hero-ready .route-q { animation-delay: 1480ms; }
+  html.js-motion .view[data-view="intro"].is-hero-ready .briefing__item .briefing__value > span { animation-delay: 1100ms; }
+  html.js-motion .view[data-view="intro"].is-hero-ready .intro-hero-vote.hero-enter { animation-delay: 900ms; }
+  html.js-motion .view[data-view="intro"].is-hero-ready .hero-parallax {
+    animation: heroImgIn 1100ms var(--ease-out-expo) both; /* no drift loop on phones */
+  }
+  html.js-motion .view[data-view="story"].active .story-hero__img {
+    animation: storyImgIn 1000ms var(--ease-out-expo) both;
+  }
+  html.js-motion .dest-grid .dest-card.reveal {
+    transition-delay: calc(var(--i, 0) * 40ms);
+  }
+  .briefing {
+    gap: 0.5rem 1.5rem;
+  }
+  .briefing__value {
+    font-size: 1.15rem;
+  }
+  .dust {
+    display: none;
+  }
+}
+
+
+/* ————————————————————————————————————————————————
+   11. Journey extras — boarding pass, route traveller, passport, moods,
+       timeline, live bumps, ending card
+   ———————————————————————————————————————————————— */
+
+/* Boarding pass: shown on the card you voted for */
+.boarding-pass {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  margin-top: 0.9rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(233, 180, 76, 0.35);
+  background:
+    linear-gradient(135deg, rgba(233, 180, 76, 0.16), rgba(19, 32, 28, 0.9) 60%),
+    var(--surface-2);
+  overflow: hidden;
+}
+.boarding-pass__main {
+  padding: 0.8rem 0.95rem 0.85rem;
+  min-width: 0;
+}
+.boarding-pass__label {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: #f0d78c;
+  opacity: 0.85;
+}
+.boarding-pass__route {
+  margin: 0.25rem 0 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  line-height: 1.3;
+  color: var(--text);
+}
+.boarding-pass__route svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--amber);
+  transform: rotate(0deg);
+}
+.boarding-pass__date {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.boarding-pass__stub {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.8rem 0.85rem;
+  border-left: 1px dashed rgba(233, 180, 76, 0.5);
+  font-family: var(--font-ui);
+  font-size: 0.66rem;
+  color: #f0d78c;
+  text-align: center;
+  white-space: nowrap;
+  transform-origin: left center;
+}
+/* perforation notches */
+.boarding-pass__stub::before,
+.boarding-pass__stub::after {
+  content: "";
+  position: absolute;
+  left: -0.4rem;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: var(--surface);
+}
+.boarding-pass__stub::before { top: -0.4rem; }
+.boarding-pass__stub::after { bottom: -0.4rem; }
+.pass-stamp {
+  position: absolute;
+  right: 5.5rem;
+  top: 0.55rem;
+  padding: 0.22rem 0.55rem;
+  border: 2px solid rgba(93, 214, 196, 0.85);
+  border-radius: 0.35rem;
+  color: #5dd6c4;
+  font-family: var(--font-ui);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  transform: rotate(-8deg);
+  opacity: 0.95;
+  mix-blend-mode: screen;
+}
+html.js-motion .vote-card.is-stamping .pass-stamp {
+  animation: stampIn 620ms var(--ease-out-expo) 260ms both;
+}
+html.js-motion .vote-card.is-stamping .boarding-pass__stub {
+  animation: stubTear 900ms var(--ease-out) 620ms both;
+}
+html.js-motion .vote-card.is-stamping .boarding-pass {
+  animation: passIn 520ms var(--ease-out-expo) both;
+}
+@keyframes stampIn {
+  0% { opacity: 0; transform: rotate(-16deg) scale(1.9); }
+  55% { opacity: 1; transform: rotate(-7deg) scale(0.92); }
+  75% { transform: rotate(-8deg) scale(1.05); }
+  100% { opacity: 0.95; transform: rotate(-8deg) scale(1); }
+}
+@keyframes stubTear {
+  0% { transform: rotate(0deg) translateX(0); }
+  35% { transform: rotate(3deg) translateX(3px); }
+  100% { transform: rotate(0deg) translateX(0); }
+}
+@keyframes passIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Route traveller + hover lighting + passport marks */
+.finale-route .route-walked {
+  fill: none;
+  stroke: var(--amber);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.finale-route .route-walker {
+  fill: #fff6d6;
+  stroke: var(--amber);
+  stroke-width: 2;
+  opacity: 0;
+  filter: drop-shadow(0 0 6px rgba(233, 180, 76, 0.85));
+  transition: opacity 300ms ease;
+}
+.finale-route circle.is-visited {
+  stroke: #5dd6c4;
+  fill: var(--surface-2);
+}
+.finale-route text.is-visited {
+  fill: #9fd9cf;
+}
+.finale-route circle.is-lit {
+  stroke: #fff6d6;
+  fill: rgba(93, 214, 196, 0.35);
+}
+.finale-route text.is-lit {
+  fill: #fff6d6;
+}
+.finale-route circle.is-mine {
+  fill: var(--amber);
+  stroke: #fff6d6;
+}
+
+/* Passport stamp in the chapter bar */
+.story-tabs {
+  position: sticky;
+}
+.passport-stamp {
+  position: absolute;
+  right: max(1rem, calc((100% - 72rem) / 2 + 1rem));
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  border: 1.5px solid rgba(93, 214, 196, 0.8);
+  border-radius: 0.45rem;
+  color: #5dd6c4;
+  font-family: var(--font-ui);
+  font-size: 0.66rem;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  transform: translateY(-50%) rotate(-6deg);
+  pointer-events: none;
+  z-index: 2;
+}
+.passport-stamp svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+.story-tabs.has-stamp #chapterTabs {
+  padding-right: 8rem;
+}
+html.js-motion .passport-stamp.is-new {
+  animation: passportIn 700ms var(--ease-out-expo) both;
+}
+@keyframes passportIn {
+  0% { opacity: 0; transform: translateY(-50%) rotate(-18deg) scale(2); }
+  55% { opacity: 1; transform: translateY(-50%) rotate(-5deg) scale(0.92); }
+  100% { opacity: 1; transform: translateY(-50%) rotate(-6deg) scale(1); }
+}
+
+/* Hover moods — one light layer per destination, desktop only */
+.card-mood {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  html.js-motion .card-mood {
+    display: block;
+    transition: opacity 600ms ease;
+  }
+  html.js-motion .dest-card:hover .card-mood {
+    opacity: 1;
+  }
+  /* Sajek: a cloud band drifting across */
+  html.js-motion .card-mood[data-mood="sajekkaptai"] {
+    background:
+      radial-gradient(55% 26% at 30% 34%, rgba(255, 255, 255, 0.34), transparent 70%),
+      radial-gradient(45% 20% at 78% 28%, rgba(255, 255, 255, 0.24), transparent 70%);
+    background-size: 200% 100%;
+    animation: moodDrift 14s linear infinite;
+  }
+  @keyframes moodDrift {
+    from { background-position: 0% 0; }
+    to { background-position: 100% 0; }
+  }
+  /* Cox's Bazar: a wave line rolling */
+  html.js-motion .card-mood[data-mood="coxstmartin"] {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 20'%3E%3Cpath d='M0 10 Q 15 0 30 10 T 60 10' fill='none' stroke='rgba(255,255,255,0.55)' stroke-width='1.5'/%3E%3C/svg%3E") repeat-x 0 76% / 60px 20px;
+    animation: moodWave 2.6s linear infinite;
+  }
+  @keyframes moodWave {
+    from { background-position: 0 76%; }
+    to { background-position: 60px 76%; }
+  }
+  /* Sundarbans: ripples on the water */
+  html.js-motion .card-mood[data-mood="sundarbans"]::before,
+  html.js-motion .card-mood[data-mood="sundarbans"]::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 72%;
+    width: 40px;
+    height: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    animation: moodRipple 3.2s ease-out infinite;
+  }
+  html.js-motion .card-mood[data-mood="sundarbans"]::after {
+    animation-delay: 1.6s;
+  }
+  @keyframes moodRipple {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(7); opacity: 0; }
+  }
+  /* Nepal: sparse snow */
+  html.js-motion .card-mood[data-mood="nepal"] {
+    background-image:
+      radial-gradient(1.5px 1.5px at 18% 12%, #fff 60%, transparent 62%),
+      radial-gradient(1.5px 1.5px at 62% 30%, #fff 60%, transparent 62%),
+      radial-gradient(2px 2px at 40% 55%, rgba(255, 255, 255, 0.9) 60%, transparent 62%),
+      radial-gradient(1.5px 1.5px at 84% 70%, #fff 60%, transparent 62%),
+      radial-gradient(1.5px 1.5px at 8% 82%, #fff 60%, transparent 62%);
+    background-size: 100% 100%;
+    animation: moodSnow 9s linear infinite;
+  }
+  @keyframes moodSnow {
+    from { background-position: 0 0; }
+    to { background-position: 0 100%; }
+  }
+  /* Sylhet: mist rising from the tea rows */
+  html.js-motion .card-mood[data-mood="sylhet"] {
+    background: linear-gradient(0deg, rgba(255, 255, 255, 0.3), transparent 48%);
+    animation: moodMist 5s ease-in-out infinite alternate;
+  }
+  @keyframes moodMist {
+    from { transform: translateY(8%); }
+    to { transform: translateY(-5%); }
+  }
+  /* Bandarban: fog lifting off the hills (once per hover) */
+  html.js-motion .card-mood[data-mood="bandarban"] {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.34), transparent 65%);
+  }
+  html.js-motion .dest-card:hover .card-mood[data-mood="bandarban"] {
+    animation: moodFog 4s var(--ease-out) both;
+  }
+  @keyframes moodFog {
+    from { transform: translateY(0); opacity: 1; }
+    to { transform: translateY(-60%); opacity: 0; }
+  }
+}
+
+/* যাত্রা chapter: a line draws down the days as you scroll; a vehicle rides it */
+.journey-track {
+  position: relative;
+  padding-left: 2.25rem;
+  view-timeline: --journey block;
+}
+.journey-line {
+  position: absolute;
+  left: 0.7rem;
+  top: 1rem;
+  bottom: 1rem;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--amber), var(--teal));
+  transform-origin: top center;
+}
+.journey-rider {
+  position: absolute;
+  left: 0;
+  top: 0.35rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--amber);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 4px var(--bg);
+}
+.journey-rider svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+@supports (animation-timeline: view()) {
+  html.js-motion .journey-line {
+    transform: scaleY(0);
+    animation: journeyDraw linear both;
+    animation-timeline: --journey;
+    animation-range: cover 5% cover 60%;
+  }
+  html.js-motion .journey-rider {
+    animation: journeyRide linear both;
+    animation-timeline: --journey;
+    animation-range: cover 5% cover 60%;
+  }
+  @keyframes journeyDraw {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+  }
+  @keyframes journeyRide {
+    from { top: 0.35rem; }
+    to { top: calc(100% - 1.9rem); }
+  }
+}
+@media (max-width: 640px) {
+  .journey-track {
+    padding-left: 1.9rem;
+  }
+  .journey-line {
+    left: 0.6rem;
+  }
+  .journey-rider {
+    width: 1.3rem;
+    height: 1.3rem;
+    left: -0.05rem;
+  }
+}
+
+/* Fun meters: fill overshoots slightly and settles */
+html.js-motion .meter-fill {
+  transition: transform 950ms cubic-bezier(0.34, 1.35, 0.64, 1);
+}
+
+/* Live results: a bar that just gained a vote pulses and shows +১ */
+.live-vote-row {
+  position: relative;
+}
+html.js-motion .live-vote-row.is-bump .live-vote-fill {
+  animation: barPulse 700ms var(--ease-out);
+}
+@keyframes barPulse {
+  0% { filter: brightness(1); }
+  30% { filter: brightness(1.6); }
+  100% { filter: brightness(1); }
+}
+.vote-bump {
+  position: absolute;
+  right: 0;
+  top: -1.05rem;
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #5dd6c4;
+  pointer-events: none;
+  animation: bumpUp 1.4s var(--ease-out) both;
+}
+@keyframes bumpUp {
+  0% { opacity: 0; transform: translateY(4px); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-18px); }
+}
+
+/* Chapter headings wipe in like the hero eyebrow */
+html.js-motion .chapter-panel.active > div:first-child > h2 {
+  animation: headingWipe 720ms var(--ease-out-expo) 120ms both;
+}
+@keyframes headingWipe {
+  from { opacity: 0; clip-path: inset(0 100% -0.2em 0); }
+  30% { opacity: 1; }
+  to { opacity: 1; clip-path: inset(0 -2% -0.2em 0); }
+}
+
+/* Ending card after voting */
+.ending-card {
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) 1fr;
+  gap: 1rem 1.5rem;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(233, 180, 76, 0.28);
+  background: linear-gradient(135deg, rgba(233, 180, 76, 0.1), rgba(19, 32, 28, 0.85) 55%);
+}
+.ending-card.hidden {
+  display: none;
+}
+.ending-card__art {
+  position: relative;
+  width: 100%;
+  max-width: 15rem;
+}
+.ending-loop {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.ending-loop__path {
+  fill: none;
+  stroke: var(--amber);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 5 7;
+}
+html.js-motion .ending-loop__path {
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
+  animation: loopDraw 1700ms var(--ease-in-out) 200ms forwards;
+}
+@keyframes loopDraw {
+  to { stroke-dashoffset: 0; }
+}
+.ending-plane {
+  position: absolute;
+  right: -0.3rem;
+  top: 6%;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: grid;
+  place-items: center;
+  color: #fff6d6;
+  transform: rotate(-32deg);
+}
+.ending-plane svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+html.js-motion .ending-plane {
+  opacity: 0;
+  animation: popIn 500ms var(--ease-soft-spring) 1750ms both;
+}
+.ending-card__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  line-height: 1.25;
+}
+.ending-card__sub {
+  margin: 0.3rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.ending-card__count {
+  margin: 0.75rem 0 0;
+  font-family: var(--font-ui);
+  color: #f0d78c;
+  font-variant-numeric: tabular-nums;
+}
+.ending-card__count strong {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  margin-right: 0.3rem;
+}
+@media (max-width: 640px) {
+  .ending-card {
+    grid-template-columns: 1fr;
+  }
+  .ending-card__art {
+    max-width: 12rem;
+  }
+  .pass-stamp {
+    right: 4.6rem;
+    font-size: 0.55rem;
+  }
+}
+
+/* Reduced motion for this block: everything static, nothing loops */
+@media (prefers-reduced-motion: reduce) {
+  .card-mood {
+    display: none !important;
+  }
+  .journey-line,
+  .journey-rider,
+  .pass-stamp,
+  .boarding-pass,
+  .boarding-pass__stub,
+  .passport-stamp,
+  .ending-loop__path,
+  .ending-plane,
+  .vote-bump,
+  .live-vote-fill,
+  .chapter-panel.active > div:first-child > h2 {
+    animation: none !important;
+    transition: none !important;
+  }
+  .ending-loop__path {
+    stroke-dashoffset: 0 !important;
+  }
+  .ending-plane {
+    opacity: 1 !important;
+  }
+  .route-walker,
+  .route-walked {
+    transition: none !important;
+  }
+}
+
+/* ————————————————————————————————————————————————
+   12. Hero life — departure board, paper plane, glow, parallax
+   ———————————————————————————————————————————————— */
+
+/* Departure board: the "?" in the route pill rolls through the six stops */
+.dest-board {
+  position: relative;
+  display: inline-block;
+  height: 1.45em;
+  line-height: 1.45;
+  overflow: hidden;
+  vertical-align: middle;
+  text-align: center;
+  white-space: nowrap;
+}
+.dest-board__track {
+  display: block;
+  will-change: transform;
+}
+html.js-motion .dest-board__track {
+  transition: transform 520ms var(--ease-out-expo);
+}
+.dest-board__item {
+  display: block;
+  height: 1.45em;
+  line-height: 1.45;
+}
+html.js-motion .dest-board.is-rolling .dest-board__track {
+  filter: blur(0.4px);
+}
+
+/* Horizon glow that breathes very slowly */
+.hero-glow {
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(42% 34% at 44% 20%, rgba(255, 176, 92, 0.32), rgba(255, 176, 92, 0) 72%);
+  opacity: 0.7;
+  transform: translate3d(calc(var(--px, 0) * 8px), calc(var(--py, 0) * 5px), 0);
+  transition: transform 900ms var(--ease-out);
+}
+html.js-motion .view[data-view="intro"].is-hero-ready .hero-glow {
+  animation: glowBreathe 14s ease-in-out 1s infinite alternate;
+}
+@keyframes glowBreathe {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+.dust {
+  transform: translate3d(calc(var(--px, 0) * -6px), calc(var(--py, 0) * -4px), 0);
+  transition: transform 900ms var(--ease-out);
+}
+
+/* Paper plane: flies once after the entrance, leaving a dashed trail that fades */
+.hero-flight {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  overflow: visible;
+  transform: translate3d(calc(var(--px, 0) * 4px), calc(var(--py, 0) * 3px), 0);
+  transition: transform 900ms var(--ease-out);
+}
+.hero-flight__trail {
+  fill: none;
+  stroke: rgba(240, 215, 140, 0.55);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 8 10;
+  opacity: 0;
+}
+.hero-flight__plane {
+  fill: #fff6d6;
+  opacity: 0;
+  filter: drop-shadow(0 0 6px rgba(240, 215, 140, 0.6));
+}
+.hero-flight__reveal {
+  transform-box: fill-box;
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+html.js-motion .hero-flight.is-flying .hero-flight__trail {
+  animation: trailShow 4.2s linear both, trailFade 1.4s ease-out 4.2s forwards;
+}
+html.js-motion .hero-flight.is-flying .hero-flight__reveal {
+  animation: trailDraw 4.2s cubic-bezier(0.42, 0, 0.28, 1) both;
+}
+@keyframes trailShow {
+  from { opacity: 1; }
+  to { opacity: 1; }
+}
+html.js-motion .hero-flight.is-flying .hero-flight__plane {
+  animation: planeShow 4.2s linear both;
+}
+@keyframes trailDraw {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes trailFade {
+  to { opacity: 0; }
+}
+@keyframes planeShow {
+  0% { opacity: 0; }
+  6% { opacity: 1; }
+  94% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* CTA arrow: a tiny nudge every few seconds, a hint that the journey starts here */
+html.js-motion #startJourney svg,
+html.js-motion #startJourney i {
+  animation: arrowNudge 6s ease-in-out 4s infinite;
+}
+@keyframes arrowNudge {
+  0%, 88%, 100% { transform: translateX(0); }
+  93% { transform: translateX(4px); }
+  97% { transform: translateX(0); }
+}
+@media (hover: hover) and (pointer: fine) {
+  html.js-motion #startJourney:hover svg,
+  html.js-motion #startJourney:hover i {
+    animation: none;
+  }
+}
+
+/* Live results rows cascade in the first time they paint */
+html.js-motion .live-vote-row.is-fresh {
+  animation: heroRise 520ms var(--ease-out-expo) both;
+  animation-delay: calc(var(--k, 0) * 70ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-glow,
+  .hero-flight,
+  .dust,
+  .dest-board__track,
+  #startJourney svg,
+  #startJourney i,
+  .live-vote-row.is-fresh {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+  .hero-flight {
+    display: none;
+  }
+}
+@media (max-width: 640px) {
+  .hero-flight {
+    display: none; /* the sky band is too small on phones; the board carries the idea */
+  }
+}
+
+/* ————————————————————————————————————————————————
+   13. Destinations — header line-up, dealt cards, brochure flip, passport mark
+   ———————————————————————————————————————————————— */
+
+/* Generic masked line-up (same move as the hero headline) */
+.line-up {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.12em;
+  margin-bottom: -0.12em;
+}
+.line-up > span {
+  display: block;
+}
+html.js-motion .view[data-view="destinations"].active .line-up > span {
+  animation: lineUp 900ms var(--ease-out-expo) 160ms both;
+}
+html.js-motion .view[data-view="destinations"].active .dest-in {
+  animation: heroRise 700ms var(--ease-out-expo) both;
+  animation-delay: calc(80ms + var(--di, 0) * 120ms);
+}
+html.js-motion .view[data-view="destinations"].active .eyebrow-wipe {
+  animation: eyebrowWipe 800ms var(--ease-out-expo) 80ms both;
+}
+
+/* Dealt from the centre: cardIn starts at --dx/--dy (0 on phones) */
+html.js-motion .dest-grid .dest-card.reveal:not(.visible) {
+  transform: translate3d(calc(var(--dx, 0px) + var(--ox, 0px) * var(--mv)), calc(var(--dy, 0px) + 28px * var(--mv)), 0) rotate(calc(var(--rot, 0deg) * 2)) scale(0.92);
+}
+html.js-motion #destGrid .dest-card.reveal.visible {
+  animation: cardDeal 820ms var(--ease-out-expo) calc(var(--i, 0) * 90ms) backwards;
+}
+@keyframes cardDeal {
+  from {
+    opacity: 0;
+    transform: translate3d(calc(var(--dx, 0px) + var(--ox, 0px) * var(--mv)), calc(var(--dy, 0px) + 28px * var(--mv)), 0) rotate(calc(var(--rot, 0deg) * 2)) scale(0.92);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Brochure flip: second photo cross-fades in on hover, with a caption */
+.card-media--peek {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 700ms ease, transform 900ms var(--ease-out-expo);
+}
+.card-peek {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 9999px;
+  background: rgba(10, 18, 16, 0.72);
+  border: 1px solid rgba(240, 215, 140, 0.35);
+  color: #f0d78c;
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 320ms ease, transform 420ms var(--ease-out-expo);
+  pointer-events: none;
+  z-index: 1;
+}
+@media (hover: hover) and (pointer: fine) {
+  .dest-card:hover .card-media--peek.is-loaded,
+  .dest-card:focus-visible .card-media--peek.is-loaded {
+    opacity: 1;
+  }
+  .dest-card:hover .card-peek,
+  .dest-card:focus-visible .card-peek {
+    opacity: 1;
+    transform: none;
+    transition-delay: 220ms;
+  }
+}
+
+/* Passport mark on a card you have fully read */
+.card-visited {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.55rem;
+  border: 1.5px solid rgba(93, 214, 196, 0.85);
+  border-radius: 0.4rem;
+  background: rgba(10, 18, 16, 0.55);
+  color: #5dd6c4;
+  font-family: var(--font-ui);
+  font-size: 0.62rem;
+  letter-spacing: 0.03em;
+  transform: rotate(-6deg);
+}
+.card-visited svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+/* the arrow badge sits bottom-right; the caption bottom-left; no collision */
+
+@media (prefers-reduced-motion: reduce) {
+  .line-up > span,
+  .dest-in,
+  .eyebrow-wipe,
+  .card-media--peek,
+  .card-peek {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    clip-path: none !important;
+    opacity: 1;
+  }
+  .card-media--peek {
+    display: none;
+  }
+  .card-peek {
+    opacity: 0 !important;
+  }
+}
+
+/* ————————————————————————————————————————————————
+   14. Story chapters + finale polish
+   ———————————————————————————————————————————————— */
+
+/* Story header: the photo scrolls slower than the page (scroll-driven, no JS) */
+.story-hero__media {
+  overflow: clip;
+}
+@supports (animation-timeline: view()) {
+  html.js-motion .story-hero__media {
+    animation: heroParallax linear both;
+    animation-timeline: view();
+    animation-range: exit 0% exit 100%;
+  }
+  @keyframes heroParallax {
+    from { transform: translate3d(0, 0, 0); }
+    to { transform: translate3d(0, 18%, 0); }
+  }
+}
+
+/* Chapter progress: thin amber line under the tab strip, fills 1/5 per chapter */
+.chapter-progress {
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--teal), var(--amber));
+  transform: scaleX(0.2);
+  transform-origin: left center;
+  pointer-events: none;
+}
+html.js-motion .chapter-progress {
+  transition: transform 520ms var(--ease-out-expo);
+}
+
+/* অনুভূতি: the three lines land one by one, the rule drawing down first */
+.imagine-line {
+  position: relative;
+  border-left-color: transparent !important;
+}
+.imagine-line::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(233, 180, 76, 0.4);
+  transform-origin: top center;
+}
+html.js-motion .chapter-panel.active .imagine-line {
+  animation: heroRise 640ms var(--ease-out-expo) both;
+  animation-delay: calc(240ms + var(--li, 0) * 160ms);
+}
+html.js-motion .chapter-panel.active .imagine-line::before {
+  transform: scaleY(0);
+  animation: ruleDown 520ms var(--ease-out-expo) both;
+  animation-delay: calc(200ms + var(--li, 0) * 160ms);
+}
+@keyframes ruleDown {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* Fun moment text: each click drops the new line in */
+html.js-motion [data-fail-out].is-new {
+  animation: failIn 420ms var(--ease-out-expo) both;
+}
+@keyframes failIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* করব: activity icons draw themselves in as the card reveals */
+html.js-motion .activity-card.reveal.visible .activity-icon * {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: iconDraw 900ms var(--ease-out) both;
+  animation-delay: calc(120ms + var(--i, 0) * 60ms);
+}
+@keyframes iconDraw {
+  to { stroke-dashoffset: 0; }
+}
+html.js-motion .activity-card.reveal.visible:nth-child(2) .activity-icon * { --i: 1; }
+html.js-motion .activity-card.reveal.visible:nth-child(3) .activity-icon * { --i: 2; }
+html.js-motion .activity-card.reveal.visible:nth-child(4) .activity-icon * { --i: 3; }
+html.js-motion .activity-card.reveal.visible:nth-child(5) .activity-icon * { --i: 4; }
+html.js-motion .activity-card.reveal.visible:nth-child(6) .activity-icon * { --i: 5; }
+
+/* Finale heading line-up; results bars: no re-entrance once settled */
+html.js-motion .view[data-view="finale"].active .finale-line > span {
+  animation: lineUp 900ms var(--ease-out-expo) 260ms both;
+}
+.vote-bar-card {
+  position: relative;
+}
+.vote-bar-card.is-settled {
+  animation: none;
+}
+html.js-motion .vote-bar-card.is-bump .vote-bar-fill {
+  animation: barPulse 700ms var(--ease-out);
+}
+.vote-bar-card .vote-bump {
+  right: 1.1rem;
+  top: 0.6rem;
+}
+/* Vote badge nudge when its number changes */
+html.js-motion .vote-count-badge.is-bump {
+  animation: badgeBump 480ms var(--ease-soft-spring);
+}
+@keyframes badgeBump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+/* Vote cards: photo zooms on hover like the destination cards */
+#finaleGrid .card-frame {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story-hero__media,
+  .chapter-progress,
+  .imagine-line,
+  .imagine-line::before,
+  [data-fail-out],
+  .activity-icon *,
+  .finale-line > span,
+  .vote-count-badge {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+  .imagine-line::before {
+    transform: scaleY(1) !important;
+  }
+}

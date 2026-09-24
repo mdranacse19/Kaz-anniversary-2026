@@ -734,16 +734,6 @@ html.js-motion .reveal.visible {
   will-change: transform;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .view[data-view="intro"].active .hero-parallax {
-    animation: slowZoom 36s ease-in-out alternate infinite;
-  }
-}
-
-@keyframes slowZoom {
-  from { transform: scale(1); }
-  to { transform: scale(1.045); }
-}
 
 /* Playful landing tagline — tasteful motion, storytelling tone */
 .playful-tagline {
@@ -784,27 +774,12 @@ html.js-motion .reveal.visible {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .view[data-view="intro"].active.is-hero-ready .playful-tagline {
-    animation: taglineRise 700ms 180ms var(--ease-enter) both;
-  }
-
   .view[data-view="intro"].active.is-hero-ready .playful-tagline__text {
-    animation: taglineShimmer 6s 1.1s ease-in-out 1;
+    animation: taglineShimmer 6s 1.7s ease-in-out 1;
   }
 
   .view[data-view="intro"].active.is-hero-ready .playful-tagline__emoji {
-    animation: taglineFloat 3.8s 0.8s ease-in-out 2;
-  }
-}
-
-@keyframes taglineRise {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
+    animation: taglineFloat 3.8s 1.6s ease-in-out 2;
   }
 }
 
@@ -954,35 +929,7 @@ html.js-motion .reveal.visible {
   }
 }
 
-/* ——— Cinematic hero entrance (layout unchanged) ——— */
-html.js-motion .view[data-view="intro"] .hero-enter {
-  opacity: 0;
-  transform: translateY(16px);
-}
-
-html.js-motion .view[data-view="intro"].is-hero-ready .hero-enter {
-  opacity: 1;
-  transform: none;
-  transition:
-    opacity var(--dur-enter) var(--ease-enter),
-    transform var(--dur-enter) var(--ease-enter);
-  transition-delay: calc(var(--hero-i, 0) * 85ms);
-}
-
-html.js-motion .view[data-view="intro"] .intro-hero-vote.hero-enter {
-  transform: translateY(18px) scale(0.98);
-}
-
-html.js-motion .view[data-view="intro"].is-hero-ready .intro-hero-vote.hero-enter {
-  transform: none;
-}
-
-html.js-motion .dest-grid .dest-card.reveal:nth-child(1) { transition-delay: 0ms; }
-html.js-motion .dest-grid .dest-card.reveal:nth-child(2) { transition-delay: 80ms; }
-html.js-motion .dest-grid .dest-card.reveal:nth-child(3) { transition-delay: 160ms; }
-html.js-motion .dest-grid .dest-card.reveal:nth-child(4) { transition-delay: 240ms; }
-html.js-motion .dest-grid .dest-card.reveal:nth-child(5) { transition-delay: 320ms; }
-html.js-motion .dest-grid .dest-card.reveal:nth-child(6) { transition-delay: 400ms; }
+/* Hero choreography and card entrance live in motion.css */
 
 .live-vote-row {
   transition: opacity 280ms var(--ease-enter), transform 280ms var(--ease-enter);
