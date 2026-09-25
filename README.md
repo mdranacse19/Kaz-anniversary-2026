@@ -47,10 +47,28 @@ python3 -m http.server 8765
 - ফাইনাল: ভোট ব্যাজ পুরোনো থেকে নতুন সংখ্যায় গোনে, ফলাফলের বারে "+১" ভাসে
 - হিরো: রুট পিলের "?" একটি ডিপারচার বোর্ড (ছয় গন্তব্য ঘুরে আবার "?"), এন্ট্রান্সের পর একবার কাগজের প্লেন উড়ে যায় (ডেস্কটপ), গ্লো ব্রিদিং, পয়েন্টার প্যারালাক্স (`Motion.departureBoard/heroFlight/heroParallax`)
 
-- লাইভ কাউন্ট JavaScript দিয়ে `votes` কালেকশন থেকে হিসাব  
-- Change / Undo একই `votes/{uid}` ডকুমেন্ট আপডেট/ডিলিট  
-- Anonymous Auth UID = voter id (ভোট কাউন্ট localStorage-এ নয়)  
-- `onSnapshot` দিয়ে অন্য ডিভাইসে লাইভ আপডেট  
+- লাইভ কাউন্ট: `publicTallies/live` (শুধু counts — পাবলিক DevTools-এ নাম নেই)  
+- `votes/{uid}`: `name`, `nameKey`, `nameHash`, `destination` (অ্যাপ শুধু নিজের ডক; Console-এ সব নাম)  
+- একই নাম ব্লক: `voterNames/{nameHash}` (SHA-256)  
+- Change / Undo + tallies আপডেট  
+- **Anonymous Auth চালু থাকতে হবে**  
+- `onSnapshot` শুধু `publicTallies/live`-এ  
+
+## গোপনীয়তা / ডিপ্লয় অর্ডার
+
+1. এই কোড ডিপ্লয় করুন  
+2. **Rebuild tallies** (পুরোনো ভোট গুনে `publicTallies/live` লিখুন) — rules এখনো open থাকলে বা TEMP signed-in list দিয়ে:
+
+```bash
+node scripts/rebuild-public-tallies-rest.mjs
+```
+
+ব্রাউজারে: `await VoteService.rebuildPublicTallies()`
+
+3. [`firestore.rules`](firestore.rules) **Publish** (votes = owner-only)  
+4. Soft refresh  
+
+এর পর পাবলিক ক্লায়েন্ট `votes` লিস্ট করতে পারবে না; লাইভ টোটাল tallies থেকে আসবে।
 
 ## ৬টি পছন্দ
 

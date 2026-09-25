@@ -1750,11 +1750,23 @@
             `<p class="vote-status__title">ভোট নেওয়া যায়নি</p>
              <p class="vote-status__body">সিস্টেম এখনো প্রস্তুত নয়। একটু পর আবার চেষ্টা করুন।</p>`
           );
+        } else if (result.error === "auth_required") {
+          setVoteStatus(
+            "error",
+            `<p class="vote-status__title">লগইন দরকার</p>
+             <p class="vote-status__body">Firebase Authentication → Anonymous চালু আছে কি নিশ্চিত করুন, তারপর পেজ রিফ্রেশ করুন।</p>`
+          );
         } else if (result.error === "permission" || result.error === "permission-denied") {
           setVoteStatus(
             "error",
             `<p class="vote-status__title">ভোট সেভ হয়নি</p>
-             <p class="vote-status__body">Firestore rules আপডেট করুন (Console → Rules → Publish)। <code class="vote-code">votes</code> লেখার অনুমতি লাগবে।</p>`
+             <p class="vote-status__body">Firestore rules Publish করুন (<code class="vote-code">votes</code> + <code class="vote-code">publicTallies</code>)।</p>`
+          );
+        } else if (result.error === "crypto_unavailable") {
+          setVoteStatus(
+            "error",
+            `<p class="vote-status__title">ভোট নেওয়া যায়নি</p>
+             <p class="vote-status__body">ব্রাউজারে নিরাপদ হ্যাশ সাপোর্ট নেই। HTTPS বা অন্য ব্রাউজার ব্যবহার করুন।</p>`
           );
         } else if (result.error === "storage" || result.error === "network") {
           setVoteStatus(

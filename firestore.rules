@@ -1,16 +1,21 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Office tour voting — open rules for shared poll.
-    // Tighten later after Anonymous Auth is fully enabled.
+    // Full vote incl. name/nameKey — owner only via the app.
+    // Firebase Console (project owner) can still view all docs for admin export.
     match /votes/{voterId} {
-      allow read, write: if true;
+      allow read, create, update, delete:
+        if request.auth != null && request.auth.uid == voterId;
     }
 
-    // Name lock for the same-name second-browser check.
-    // Same open office policy as votes: fallback voter ids are not Firebase Auth uids,
-    // so rules cannot prove name ownership. The client transaction is the guard.
-    match /voterNames/{nameKey} {
+    // Public live results: counts only (no names). Site listens here.
+    match /publicTallies/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Same-name lock: doc id is SHA-256 hash (not plaintext name).
+    match /voterNames/{nameHash} {
       allow read, write: if true;
     }
   }

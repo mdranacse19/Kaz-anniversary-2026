@@ -3,6 +3,7 @@
   "private": true,
   "description": "KAZ Software Anniversary Tour 2026 — static site + Firebase votes",
   "scripts": {
-    "start": "python3 -m http.server 8765"
+    "start": "python3 -m http.server 8765",
+    "rebuild:tallies": "node scripts/rebuild-public-tallies-rest.mjs"
   }
 }
