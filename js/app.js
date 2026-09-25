@@ -1726,7 +1726,7 @@
       if (!result.ok) {
         if (result.error === "name_taken") {
           const warned = result.name || voterName || "";
-          nameWarn = `${warned} তুমি কি ভাল হবা না?`;
+          nameWarn = `মাসুদ তুমি কি ভাল হবা না?`;
           voterName = warned;
           continue;
         } else if (result.error === "already" || result.error === "locked") {
