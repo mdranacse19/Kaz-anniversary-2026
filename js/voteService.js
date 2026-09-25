@@ -7,6 +7,7 @@
 (function (global) {
   const DEST_IDS = ["sundarbans", "sylhet", "sajekkaptai", "nepal", "bandarban", "coxstmartin"];
   const COLLECTION = "votes";
+  const NAMES = "voterNames";
   const KEY_FALLBACK_VOTER = "kaz-2026-firebase-voter";
 
   let busy = false;
@@ -147,6 +148,33 @@
     return fallbackVoterId;
   }
 
+  function normalizeVoterName(raw) {
+    if (typeof raw !== "string") return "";
+    return raw.replace(/\s+/g, " ").trim().slice(0, 60);
+  }
+
+  /** Lock id: trimmed name, Latin case-folded. Bengali is unchanged by toLowerCase. */
+  function voterNameKey(raw) {
+    let key = normalizeVoterName(raw).toLowerCase();
+    if (!key) return "";
+    key = key.replace(/\//g, "\u2044");
+    if (key === "." || key === ".." || /^__.*__$/.test(key)) key = "n-" + key;
+    return key.slice(0, 700);
+  }
+
+  function sameNameTaken(votes, nameKey, uid) {
+    if (!nameKey) return false;
+    return votes.some((v) => {
+      if (v.voter_id === uid) return false;
+      const key = v.nameKey || voterNameKey(v.name);
+      return key === nameKey;
+    });
+  }
+
+  function canChangeVote() {
+    return !!(global.SITE_CONFIG && global.SITE_CONFIG.allowChangeVote === true);
+  }
+
   function docsToVotes(snapshot) {
     const votes = [];
     snapshot.forEach((doc) => {
@@ -155,6 +183,8 @@
       votes.push({
         destination: data.destination,
         voter_id: doc.id,
+        name: typeof data.name === "string" ? data.name : "",
+        nameKey: typeof data.nameKey === "string" ? data.nameKey : "",
         voted_at: data.voted_at || data.updated_at || null,
       });
     });
@@ -172,6 +202,7 @@
           destinationId: mine.destination,
           voter_id: mine.voter_id,
           voterId: mine.voter_id,
+          name: mine.name || "",
           voted_at: mine.voted_at,
         };
       }
@@ -278,34 +309,72 @@
     };
   }
 
-  async function castVote(destinationId) {
+  async function castVote(destinationId, voterName) {
     if (busy) return { ok: false, error: "busy" };
     if (!DEST_IDS.includes(destinationId)) return { ok: false, error: "invalid" };
+    const name = normalizeVoterName(voterName);
+    if (!name) return { ok: false, error: "name_required" };
     if (!global.FIREBASE_ENABLED) return { ok: false, error: "firebase_not_configured", results: unavailable("firebase_not_configured") };
 
+    const nameKey = voterNameKey(name);
     busy = true;
     try {
       const { db } = ensureApp();
       const user = await ensureAuth();
-      const ref = db.collection(COLLECTION).doc(user.uid);
-      const existing = await ref.get();
-      if (existing.exists) {
-        const results = await fetchAllVotes();
-        return { ok: false, error: "already", vote: existing.data(), results };
-      }
+      const voteRef = db.collection(COLLECTION).doc(user.uid);
       const stamp = nowIso();
-      const record = { destination: destinationId, voted_at: stamp, updated_at: stamp };
-      await ref.set(record);
+      const record = {
+        destination: destinationId,
+        name,
+        nameKey,
+        voted_at: stamp,
+        updated_at: stamp,
+      };
+
+      // Uniqueness = name only (any browser). Scan votes; do not require voterNames
+      // (that collection fails if Console rules were never updated).
+      const priorSnap = await db.collection(COLLECTION).get();
+      const existingMine = priorSnap.docs.find((d) => d.id === user.uid);
+      if (existingMine) {
+        const results = await fetchAllVotes();
+        return { ok: false, error: "already", vote: existingMine.data(), results };
+      }
+      if (sameNameTaken(docsToVotes(priorSnap), nameKey, user.uid)) {
+        const results = await fetchAllVotes();
+        return { ok: false, error: "name_taken", name, results };
+      }
+
+      await voteRef.set(record);
+
+      // Soft lock in voterNames when rules allow it; ignore if permission-denied.
+      try {
+        const nameRef = db.collection(NAMES).doc(nameKey);
+        const nameSnap = await nameRef.get();
+        if (!nameSnap.exists || nameSnap.data().uid === user.uid) {
+          await nameRef.set({ uid: user.uid, name, nameKey });
+        }
+      } catch (_) {
+        /* voterNames optional — votes collection is source of truth */
+      }
+
       const results = await fetchAllVotes();
       return { ok: true, vote: { ...record, voter_id: user.uid }, results };
     } catch (e) {
-      return { ok: false, error: e?.code || "network", results: lastResults };
+      const code = e && e.code ? String(e.code) : "";
+      if (code === "permission-denied" || code === "firestore/permission-denied") {
+        return { ok: false, error: "permission", results: lastResults };
+      }
+      return { ok: false, error: code || "network", results: lastResults };
     } finally {
       busy = false;
     }
   }
 
   async function changeVote(destinationId) {
+    if (!canChangeVote()) {
+      const results = lastResults || (await getResults().catch(() => unavailable("locked")));
+      return { ok: false, error: "locked", results };
+    }
     if (busy) return { ok: false, error: "busy" };
     if (!DEST_IDS.includes(destinationId)) return { ok: false, error: "invalid" };
     if (!global.FIREBASE_ENABLED) return { ok: false, error: "firebase_not_configured", results: unavailable("firebase_not_configured") };
@@ -319,10 +388,8 @@
       const stamp = nowIso();
 
       if (!existing.exists) {
-        const record = { destination: destinationId, voted_at: stamp, updated_at: stamp };
-        await ref.set(record);
         const results = await fetchAllVotes();
-        return { ok: true, vote: { ...record, voter_id: user.uid }, results };
+        return { ok: false, error: "name_required", results };
       }
 
       const prev = existing.data() || {};
@@ -336,8 +403,11 @@
         };
       }
 
+      const displayName = normalizeVoterName(prev.name);
       const record = {
         destination: destinationId,
+        name: displayName,
+        nameKey: prev.nameKey || voterNameKey(displayName),
         voted_at: prev.voted_at || stamp,
         updated_at: stamp,
       };
@@ -352,6 +422,10 @@
   }
 
   async function clearVote() {
+    if (!canChangeVote()) {
+      const results = lastResults || (await getResults().catch(() => unavailable("locked")));
+      return { ok: false, error: "locked", results };
+    }
     if (busy) return { ok: false, error: "busy" };
     if (!global.FIREBASE_ENABLED) return { ok: false, error: "firebase_not_configured", results: unavailable("firebase_not_configured") };
 
@@ -359,13 +433,26 @@
     try {
       const { db } = ensureApp();
       const user = await ensureAuth();
-      const ref = db.collection(COLLECTION).doc(user.uid);
-      const existing = await ref.get();
+      const voteRef = db.collection(COLLECTION).doc(user.uid);
+      const existing = await voteRef.get();
       if (!existing.exists) {
         const results = await fetchAllVotes();
         return { ok: true, cleared: false, results };
       }
-      await ref.delete();
+      const prev = existing.data() || {};
+      const key = prev.nameKey || voterNameKey(prev.name);
+      await voteRef.delete();
+      if (key) {
+        try {
+          const nameRef = db.collection(NAMES).doc(key);
+          const nameSnap = await nameRef.get();
+          if (nameSnap.exists && nameSnap.data().uid === user.uid) {
+            await nameRef.delete();
+          }
+        } catch (_) {
+          /* optional */
+        }
+      }
       const results = await fetchAllVotes();
       return { ok: true, cleared: true, results };
     } catch (e) {
@@ -397,6 +484,7 @@
     getVoterId,
     getCastVote,
     hasUserVoted,
+    canChangeVote,
     calculateTotals,
     getResults,
     subscribeResults,

@@ -1046,6 +1046,7 @@ html.js-motion #finaleGrid .dest-card.reveal.visible.vote-card--confirmed {
   transition-timing-function: var(--ease-in), ease;
 }
 #modalClose,
+#voteNameCancel,
 #undoVoteCancel {
   transition: transform var(--dur-fast) var(--ease-out), background 200ms ease, border-color 200ms ease;
 }

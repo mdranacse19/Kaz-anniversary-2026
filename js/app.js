@@ -1060,12 +1060,26 @@
     });
   }
 
+  function canChangeVote() {
+    return !!(Vote && typeof Vote.canChangeVote === "function" && Vote.canChangeVote());
+  }
+
+  function syncFinaleVoteBlurb() {
+    const el = $("#finaleVoteBlurb");
+    if (!el) return;
+    el.textContent = canChangeVote()
+      ? "একটা গন্তব্যে ভোট দিন—নাম দিয়ে। প্রতি ডিভাইসে এক সক্রিয় ভোট—চাইলে বদলান বা বাতিল করতে পারবেন।"
+      : "একটা গন্তব্যে ভোট দিন—নাম দিয়ে। প্রতি ডিভাইসে একবার ভোট; একবার দিলে আর বদলানো যাবে না।";
+  }
+
   function renderVoteActions(cast) {
     const actions = $("#voteActions");
     if (!actions) return;
 
-    if (!cast || state.voteChanging) {
-      if (state.voteChanging) {
+    const allowChange = canChangeVote();
+
+    if (!cast || (allowChange && state.voteChanging)) {
+      if (allowChange && state.voteChanging) {
         actions.classList.remove("hidden");
         actions.innerHTML = `
           <p class="text-sm text-[var(--muted)]">নতুন গন্তব্য বেছে নিন—আগের ভোট সরানো হবে।</p>
@@ -1085,6 +1099,17 @@
 
     const name = getDestById(cast.destinationId)?.name || cast.destinationId;
     actions.classList.remove("hidden");
+
+    if (!allowChange) {
+      actions.innerHTML = `
+        <p class="text-sm text-[var(--muted)]">
+          আপনার ভোট লক করা আছে। পছন্দ: <strong class="text-amber-200">${name}</strong>
+        </p>
+        <p class="text-xs text-[var(--muted)] mt-1">একবার ভোট দিলে আর বদলানো বা বাতিল করা যায় না।</p>
+      `;
+      return;
+    }
+
     actions.innerHTML = `
       <div class="vote-actions__row">
         <button type="button" class="btn-primary focus-ring rounded-full px-5 py-2.5 text-sm cursor-pointer font-medium" data-change-vote>
@@ -1106,8 +1131,9 @@
     const results = await Vote.getResults();
     state.voteResults = results;
     const cast = results.localVote;
+    const allowChange = canChangeVote();
 
-    if (opts.justVoted || opts.justChanged) {
+    if (opts.justVoted) {
       const selected = $(".vote-card.selected");
       if (selected && !reduceMotion) {
         selected.classList.remove("vote-card--confirmed", "is-stamping");
@@ -1120,23 +1146,26 @@
       const name = getDestById(cast?.destinationId)?.name || "";
       setVoteStatus(
         "success",
-        `<p class="vote-status__title">আপনার ভোট গণনা হয়েছে! 🎉</p>
+        allowChange
+          ? `<p class="vote-status__title">আপনার ভোট গণনা হয়েছে! 🎉</p>
          <p class="vote-status__body">Your vote has been counted!${name ? ` পছন্দ: <strong>${name}</strong>.` : ""} চাইলে ভোট বদলাতে বা বাতিল করতে পারেন।</p>`
+          : `<p class="vote-status__title">আপনার ভোট গণনা হয়েছে! 🎉</p>
+         <p class="vote-status__body">Your vote has been counted!${name ? ` পছন্দ: <strong>${name}</strong>.` : ""} এই ভোট চূড়ান্ত—আর বদলানো যাবে না।</p>`
       );
-    } else if (opts.justChanged) {
+    } else if (opts.justChanged && allowChange) {
       const name = getDestById(cast?.destinationId)?.name || "";
       setVoteStatus(
         "success",
         `<p class="vote-status__title">ভোট আপডেট হয়েছে</p>
          <p class="vote-status__body">নতুন পছন্দ: <strong>${name}</strong>. আগের ভোট সরানো হয়েছে—শুধু একটা সক্রিয় ভোট।</p>`
       );
-    } else if (opts.justUndone) {
+    } else if (opts.justUndone && allowChange) {
       setVoteStatus(
         "info",
         `<p class="vote-status__title">ভোট সরানো হয়েছে</p>
          <p class="vote-status__body">আপনি আবার যেকোনো গন্তব্যে ভোট দিতে পারেন।</p>`
       );
-    } else if (state.voteChanging) {
+    } else if (allowChange && state.voteChanging) {
       setVoteStatus(
         "info",
         `<p class="vote-status__title">ভোট বদলান</p>
@@ -1146,8 +1175,11 @@
       const name = getDestById(cast.destinationId)?.name || cast.destinationId;
       setVoteStatus(
         "info",
-        `<p class="vote-status__title">আপনি ইতিমধ্যে ভোট দিয়েছেন</p>
+        allowChange
+          ? `<p class="vote-status__title">আপনি ইতিমধ্যে ভোট দিয়েছেন</p>
          <p class="vote-status__body">পছন্দ: <strong>${name}</strong>. চাইলে বদলান বা বাতিল করুন।</p>`
+          : `<p class="vote-status__title">আপনি ইতিমধ্যে ভোট দিয়েছেন</p>
+         <p class="vote-status__body">পছন্দ: <strong>${name}</strong>. ভোট লক করা আছে।</p>`
       );
     } else if (!opts.keepStatus) {
       setVoteStatus(null);
@@ -1161,22 +1193,26 @@
 
     const note = $("#voteNote");
     if (note) {
-      note.textContent =
-        !cast && !state.voteChanging
-          ? "একটা গন্তব্য বেছে ভোট দিন। চাইলে পরে বদলান বা বাতিল করতে পারবেন।"
-          : "";
+      if (!cast && !(allowChange && state.voteChanging)) {
+        note.textContent = allowChange
+          ? "ভোট দেওয়ার আগে আপনার নাম লিখতে হবে। চাইলে পরে বদলান বা বাতিল করতে পারবেন।"
+          : "ভোট দেওয়ার আগে আপনার নাম লিখতে হবে। একবার দিলে আর বদলানো যাবে না।";
+      } else {
+        note.textContent = "";
+      }
     }
 
     refreshLiveVote();
   }
 
   function beginChangeVote() {
-    if (!Vote || state.voteBusy || !Vote.hasUserVoted()) return;
+    if (!Vote || state.voteBusy || !canChangeVote() || !Vote.hasUserVoted()) return;
     state.voteChanging = true;
     renderFinale();
   }
 
   function openUndoConfirm() {
+    if (!canChangeVote()) return;
     const modal = $("#undoVoteModal");
     if (!modal) return;
     modal.classList.remove("hidden", "is-open");
@@ -1201,7 +1237,7 @@
   }
 
   async function confirmUndoVote() {
-    if (!Vote || state.voteBusy) return;
+    if (!Vote || state.voteBusy || !canChangeVote()) return;
     closeUndoConfirm();
     setVoteButtonsBusy(true);
     try {
@@ -1209,8 +1245,11 @@
       if (!result.ok) {
         setVoteStatus(
           "error",
-          `<p class="vote-status__title">বাতিল করা যায়নি</p>
-           <p class="vote-status__body">একটু পর আবার চেষ্টা করুন।</p>`
+          result.error === "locked"
+            ? `<p class="vote-status__title">ভোট লক করা আছে</p>
+             <p class="vote-status__body">বাতিল করা যায় না।</p>`
+            : `<p class="vote-status__title">বাতিল করা যায়নি</p>
+             <p class="vote-status__body">একটু পর আবার চেষ্টা করুন।</p>`
         );
         return;
       }
@@ -1221,16 +1260,102 @@
       setVoteStatus(
         "error",
         `<p class="vote-status__title">বাতিল করা যায়নি</p>
-         <p class="vote-status__body">নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।</p>`
+         <p class="vote-status__body">নেটওয়ার্ক সমস্যা। আবার চেষ্টা করুন।</p>`
       );
     } finally {
       setVoteButtonsBusy(false);
     }
   }
 
+  let namePromptResolve = null;
+
+  function closeVoteNameModal(result) {
+    const modal = $("#voteNameModal");
+    const resolve = namePromptResolve;
+    namePromptResolve = null;
+
+    const finish = () => {
+      if (modal) {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex", "is-open");
+      }
+      if (resolve) resolve(result);
+    };
+
+    if (!modal || modal.classList.contains("hidden")) {
+      finish();
+      return;
+    }
+    if (reduceMotion) {
+      finish();
+      return;
+    }
+    modal.classList.remove("is-open");
+    window.setTimeout(finish, 220);
+  }
+
+  /** Ask for voter name before casting. Resolves to trimmed name or null if cancelled. */
+  function promptVoterName(destinationId, opts) {
+    const modal = $("#voteNameModal");
+    const input = $("#voteNameInput");
+    const err = $("#voteNameError");
+    const destLabel = $("#voteNameDest");
+    if (!modal || !input) return Promise.resolve(null);
+
+    const destName = getDestById(destinationId)?.name || destinationId;
+    if (destLabel) {
+      destLabel.textContent = canChangeVote()
+        ? `পছন্দ: ${destName} — নাম দিয়ে ভোট নিশ্চিত করুন।`
+        : `পছন্দ: ${destName} — ভোট লক হয়ে যাবে।`;
+    }
+    if (err) {
+      if (opts && opts.error) {
+        err.textContent = opts.error;
+        err.classList.remove("hidden");
+      } else {
+        err.classList.add("hidden");
+        err.textContent = "";
+      }
+    }
+    input.value = (opts && opts.value) || "";
+
+    if (namePromptResolve) {
+      const prev = namePromptResolve;
+      namePromptResolve = null;
+      prev(null);
+    }
+
+    return new Promise((resolve) => {
+      namePromptResolve = resolve;
+      modal.classList.remove("hidden", "is-open");
+      modal.classList.add("flex");
+      requestAnimationFrame(() => {
+        modal.classList.add("is-open");
+        input.focus();
+      });
+    });
+  }
+
+  function submitVoteName() {
+    const input = $("#voteNameInput");
+    const err = $("#voteNameError");
+    const name = (input?.value || "").replace(/\s+/g, " ").trim();
+    if (!name) {
+      if (err) {
+        err.textContent = "নাম লিখুন—খালি রাখা যাবে না।";
+        err.classList.remove("hidden");
+      }
+      input?.focus();
+      return;
+    }
+    closeVoteNameModal(name.slice(0, 60));
+  }
+
   async function renderFinale(opts = {}) {
     const wrap = $("#finaleGrid");
     if (!wrap || !Vote) return;
+
+    syncFinaleVoteBlurb();
 
     // Load counts before painting cards so badges match the results panel.
     try {
@@ -1241,7 +1366,8 @@
 
     const cast = Vote.getCastVote();
     const votedId = cast && cast.destinationId;
-    const changing = state.voteChanging;
+    const allowChange = canChangeVote();
+    const changing = allowChange && state.voteChanging;
     const locked = !!votedId && !changing;
     const counts = (state.voteResults && state.voteResults.counts) || {};
     // Cards choreograph in only on the first paint of this visit; re-renders after
@@ -1255,10 +1381,10 @@
       const count = counts[d.id] || 0;
       const lockedOther = locked && !selected;
       let voteBtnLabel = "ভোট দিন";
-      if (lockedOther) voteBtnLabel = "অন্য গন্তব্যে ভোট দিয়েছেন";
-      else if (selected && !changing) voteBtnLabel = "ভোট দেওয়া হয়েছে ✓";
+      if (changing) voteBtnLabel = votedId === d.id ? "এখানে রাখুন" : "এতে বদলান";
+      else if (lockedOther) voteBtnLabel = "অন্য গন্তব্যে ভোট দিয়েছেন";
+      else if (selected) voteBtnLabel = "ভোট দেওয়া হয়েছে ✓";
       else if (state.voteBusy) voteBtnLabel = "ভোট দিন";
-      else if (changing) voteBtnLabel = votedId === d.id ? "এখানে রাখুন" : "এতে বদলান";
 
       const pass =
         locked && selected
@@ -1554,11 +1680,33 @@
       return;
     }
 
-    const changing = state.voteChanging && Vote.hasUserVoted();
+    const changing = canChangeVote() && state.voteChanging && Vote.hasUserVoted();
 
     if (!changing && Vote.hasUserVoted()) {
-      await renderFinale();
+      if (!canChangeVote()) {
+        setVoteStatus(
+          "info",
+          `<p class="vote-status__title">ভোট লক করা আছে</p>
+           <p class="vote-status__body">আপনি ইতিমধ্যে ভোট দিয়েছেন। আর বদলানো যায় না।</p>`
+        );
+        await renderFinale({ ui: { keepStatus: true } });
+      } else {
+        await renderFinale();
+      }
       return;
+    }
+
+    let voterName = null;
+    let nameWarn = "";
+
+    while (true) {
+    if (!changing) {
+      voterName = await promptVoterName(destinationId, {
+        value: voterName || "",
+        error: nameWarn,
+      });
+      if (!voterName) return;
+      nameWarn = "";
     }
 
     setVoteButtonsBusy(true);
@@ -1573,20 +1721,40 @@
     try {
       const result = changing
         ? await Vote.changeVote(destinationId)
-        : await Vote.castVote(destinationId);
+        : await Vote.castVote(destinationId, voterName);
 
       if (!result.ok) {
-        if (result.error === "already") {
+        if (result.error === "name_taken") {
+          const warned = result.name || voterName || "";
+          nameWarn = `${warned} তুমি কি ভাল হবা না?`;
+          voterName = warned;
+          continue;
+        } else if (result.error === "already" || result.error === "locked") {
           setVoteStatus(
             "info",
-            `<p class="vote-status__title">আপনি ইতিমধ্যে ভোট দিয়েছেন</p>
+            canChangeVote()
+              ? `<p class="vote-status__title">আপনি ইতিমধ্যে ভোট দিয়েছেন</p>
              <p class="vote-status__body">ভোট বদলাতে «ভোট বদলান» চাপুন।</p>`
+              : `<p class="vote-status__title">আপনি ইতিমধ্যে ভোট দিয়েছেন</p>
+             <p class="vote-status__body">ভোট লক করা আছে—আর বদলানো যায় না।</p>`
+          );
+        } else if (result.error === "name_required") {
+          setVoteStatus(
+            "error",
+            `<p class="vote-status__title">নাম প্রয়োজন</p>
+             <p class="vote-status__body">ভোট দেওয়ার আগে আপনার নাম লিখুন।</p>`
           );
         } else if (result.error === "firebase_not_configured") {
           setVoteStatus(
             "error",
             `<p class="vote-status__title">ভোট নেওয়া যায়নি</p>
              <p class="vote-status__body">সিস্টেম এখনো প্রস্তুত নয়। একটু পর আবার চেষ্টা করুন।</p>`
+          );
+        } else if (result.error === "permission" || result.error === "permission-denied") {
+          setVoteStatus(
+            "error",
+            `<p class="vote-status__title">ভোট সেভ হয়নি</p>
+             <p class="vote-status__body">Firestore rules আপডেট করুন (Console → Rules → Publish)। <code class="vote-code">votes</code> লেখার অনুমতি লাগবে।</p>`
           );
         } else if (result.error === "storage" || result.error === "network") {
           setVoteStatus(
@@ -1610,7 +1778,7 @@
           setVoteStatus(
             "error",
             `<p class="vote-status__title">ভোট নেওয়া যায়নি</p>
-             <p class="vote-status__body">একটু পর আবার চেষ্টা করুন।</p>`
+             <p class="vote-status__body">একটু পর আবার চেষ্টা করুন${result.error ? ` (${result.error})` : ""}।</p>`
           );
         }
         return;
@@ -1625,14 +1793,17 @@
         },
       });
       $("#voteResults")?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
+      return;
     } catch {
       setVoteStatus(
         "error",
         `<p class="vote-status__title">ভোট নেওয়া যায়নি</p>
          <p class="vote-status__body">নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।</p>`
       );
+      return;
     } finally {
       setVoteButtonsBusy(false);
+    }
     }
   }
 
@@ -1677,7 +1848,17 @@
     $("#attrModal")?.addEventListener("click", (e) => {
       if (e.target.id === "attrModal") closeModal();
     });
-
+    $("#voteNameConfirm")?.addEventListener("click", submitVoteName);
+    $("#voteNameCancel")?.addEventListener("click", () => closeVoteNameModal(null));
+    $("#voteNameModal")?.addEventListener("click", (e) => {
+      if (e.target.id === "voteNameModal") closeVoteNameModal(null);
+    });
+    $("#voteNameInput")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        submitVoteName();
+      }
+    });
     $("#undoVoteConfirm")?.addEventListener("click", () => confirmUndoVote());
     $("#undoVoteCancel")?.addEventListener("click", closeUndoConfirm);
     $("#undoVoteModal")?.addEventListener("click", (e) => {
@@ -1687,6 +1868,7 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         closeModal();
+        closeVoteNameModal(null);
         closeUndoConfirm();
       }
       if (e.altKey) return;
@@ -1787,6 +1969,7 @@
     });
     bindGlobalNav();
     bindKbdHint();
+    syncFinaleVoteBlurb();
     const initial = readHash() || "intro";
     if (initial === "story") renderStory();
     showView(initial, { instant: true });

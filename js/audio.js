@@ -13,7 +13,7 @@
   "use strict";
 
   const STORAGE_KEY = "kaz.bgm";
-  const TARGET_VOLUME = 0.28;
+  const TARGET_VOLUME = 0.18;
   const FADE_IN_MS = 1400;
   const FADE_OUT_MS = 450;
 

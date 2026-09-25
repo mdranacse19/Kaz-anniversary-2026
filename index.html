@@ -195,8 +195,8 @@
         <svg class="finale-route" aria-hidden="true" focusable="false"></svg>
         <p class="finale-in font-ui text-teal-300 text-sm tracking-wide mb-3" style="--fi:0">০৪ · আমাদের অ্যাডভেঞ্চার</p>
         <h2 class="font-display text-4xl md:text-6xl mb-4 max-w-3xl leading-tight"><span class="line-up finale-line"><span>তাহলে—কোথায় যাচ্ছি?</span></span></h2>
-        <p class="finale-in text-[var(--muted)] max-w-2xl mb-10" style="--fi:2">
-          একটা গন্তব্যে ভোট দিন। প্রতি ডিভাইসে এক সক্রিয় ভোট—চাইলে বদলান বা বাতিল করতে পারবেন।
+        <p id="finaleVoteBlurb" class="finale-in text-[var(--muted)] max-w-2xl mb-10" style="--fi:2">
+          একটা গন্তব্যে ভোট দিন—নাম দিয়ে। প্রতি ডিভাইসে একবার ভোট।
         </p>
       </div>
 
@@ -232,6 +232,31 @@
     </div>
   </div>
 
+  <div id="voteNameModal" class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="voteNameTitle">
+    <div class="max-w-md w-full rounded-2xl bg-[var(--surface)] border border-[var(--line)] p-6 space-y-4">
+      <h3 id="voteNameTitle" class="font-display text-2xl">আপনার নাম লিখুন</h3>
+      <p id="voteNameDest" class="text-[var(--muted)] text-sm leading-relaxed"></p>
+      <label class="block space-y-2">
+        <span class="text-sm text-amber-200/90">নাম</span>
+        <input
+          id="voteNameInput"
+          type="text"
+          name="voterName"
+          autocomplete="name"
+          maxlength="60"
+          required
+          class="w-full rounded-xl bg-[var(--bg)] border border-[var(--line)] px-4 py-3 text-[var(--text)] caret-[var(--text)] placeholder:text-[var(--muted)] focus-ring outline-none"
+          placeholder="যেমন: মাসুদ (তুমি কি ভাল হবা না?)"
+        />
+      </label>
+      <p id="voteNameError" class="text-sm text-rose-300 hidden" role="alert"></p>
+      <div class="flex flex-wrap gap-3 pt-1">
+        <button id="voteNameConfirm" type="button" class="btn-primary focus-ring rounded-full px-5 py-2.5 cursor-pointer font-medium">ভোট নিশ্চিত করুন</button>
+        <button id="voteNameCancel" type="button" class="btn-ghost focus-ring rounded-full px-5 py-2.5 cursor-pointer">বাতিল</button>
+      </div>
+    </div>
+  </div>
+
   <div id="undoVoteModal" class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="undoVoteTitle">
     <div class="max-w-md w-full rounded-2xl bg-[var(--surface)] border border-[var(--line)] p-6 space-y-4">
       <h3 id="undoVoteTitle" class="font-display text-2xl">ভোট বাতিল?</h3>
@@ -250,6 +275,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
+  <script src="js/config.js"></script>
   <script src="js/data.js"></script>
   <script src="js/voteService.js"></script>
   <script src="js/motion.js"></script>
