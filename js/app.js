@@ -36,6 +36,9 @@
   const BUMP_MS = 1500;
   const bumps = { live: new Map(), bar: new Map() };
   let lastBadgeCounts = null;
+  // Counts stay out of the DOM while the tally is hidden; only percentages render.
+  let lastLiveCounts = null;
+  let lastBarCounts = null;
   function noteBump(kind, id, delta) {
     bumps[kind].set(id, { until: Date.now() + BUMP_MS, delta });
   }
@@ -859,8 +862,8 @@
     el.innerHTML = html;
   }
 
-  function bnVotes(n) {
-    return `${bn(n)} ভোট`;
+  function bnPct(n) {
+    return `${bn(n)}%`;
   }
 
   function setVoteButtonsBusy(busy) {
@@ -873,30 +876,6 @@
   function pctOfTotal(count, total) {
     if (!total || total <= 0) return 0;
     return Math.round((count / total) * 100);
-  }
-
-  function animateCount(el, to, reduce) {
-    if (!el) return;
-    const target = Math.max(0, Number(to) || 0);
-    if (reduce) {
-      el.textContent = bn(target);
-      return;
-    }
-    const from = Number(el.dataset.countVal || 0);
-    el.dataset.countVal = String(target);
-    if (from === target) {
-      el.textContent = bn(target);
-      return;
-    }
-    const start = performance.now();
-    const dur = 450;
-    const tick = (now) => {
-      const t = Math.min(1, (now - start) / dur);
-      const eased = 1 - Math.pow(1 - t, 3);
-      el.textContent = bn(Math.round(from + (target - from) * eased));
-      if (t < 1) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
   }
 
   async function refreshLiveVote(resultsIn) {
@@ -938,23 +917,20 @@
       pct: (results.percentages && results.percentages[d.id]) ?? pctOfTotal(results.counts[d.id] || 0, total),
     })).sort((a, b) => b.count - a.count || a.num.localeCompare(b.num, "bn"));
 
-    const prevCounts = {};
-    $$("[data-live-count]", bars).forEach((el) => {
-      prevCounts[el.getAttribute("data-live-count")] = el.dataset.countVal || el.textContent;
-    });
-    const hadPrev = Object.keys(prevCounts).length > 0;
+    const prevCounts = lastLiveCounts || {};
+    const hadPrev = !!lastLiveCounts;
+    lastLiveCounts = { ...results.counts };
 
     const firstPaint = !bars.dataset.painted;
     bars.dataset.painted = "1";
     bars.innerHTML = ordered
       .map((d, k) => {
         const mine = myId === d.id;
-        const startCount = prevCounts[d.id] != null ? prevCounts[d.id] : "0";
         return `
           <div class="live-vote-row ${mine ? "is-mine" : ""} ${firstPaint ? "is-fresh" : ""}" data-live-row="${d.id}" style="--k:${k}">
             <div class="live-vote-row__meta">
               <p class="live-vote-row__name">${d.name}${mine ? " · আপনার ভোট" : ""}</p>
-              <p class="live-vote-row__stats"><strong data-live-count="${d.id}" data-count-val="${startCount}">${bn(startCount)}</strong> ভোট · <span data-live-pct="${d.id}">${bn(d.pct)}</span>%</p>
+              <p class="live-vote-row__stats"><strong data-live-pct="${d.id}">${bn(d.pct)}</strong>%</p>
             </div>
             <div class="live-vote-track" aria-hidden="true">
               <div class="live-vote-fill" data-live-w="${d.pct}"></div>
@@ -963,9 +939,7 @@
       })
       .join("");
 
-    if (meta) {
-      meta.textContent = `মোট ${bn(total)} ভোট`;
-    }
+    if (meta) meta.textContent = "";
 
     // A vote just arrived (realtime or ours): that bar pulses and a "+১" floats up.
     if (hadPrev && jsMotion) {
@@ -977,12 +951,6 @@
     if (jsMotion) applyBumps("live", bars, "[data-live-row");
 
     requestAnimationFrame(() => {
-      ordered.forEach((d) => {
-        const countEl = bars.querySelector(`[data-live-count="${d.id}"]`);
-        animateCount(countEl, d.count, reduceMotion);
-        const pctEl = bars.querySelector(`[data-live-pct="${d.id}"]`);
-        if (pctEl) pctEl.textContent = bn(d.pct);
-      });
       $$("[data-live-w]", bars).forEach((el) => {
         const w = Number(el.getAttribute("data-live-w") || "0");
         const scale = Math.max(0, Math.min(1, w / 100));
@@ -1005,17 +973,14 @@
     })).sort((a, b) => b.count - a.count || a.num.localeCompare(b.num, "bn"));
 
     const localId = results.localVote && results.localVote.destinationId;
-    const prevBar = {};
-    $$("[data-bar-id]", root).forEach((el) => {
-      prevBar[el.getAttribute("data-bar-id")] = Number(el.dataset.count || 0);
-    });
-    const hadPrev = Object.keys(prevBar).length > 0;
+    const prevBar = lastBarCounts || {};
+    const hadPrev = !!lastBarCounts;
+    lastBarCounts = { ...results.counts };
 
     root.classList.remove("hidden");
     root.innerHTML = `
       <div class="vote-results__head">
         <h3 class="font-display text-3xl md:text-4xl">লাইভ ফলাফল</h3>
-        <p class="text-sm text-[var(--muted)] mt-2">মোট ${bn(total)} ভোট</p>
       </div>
       <div class="vote-bars mt-8 space-y-4" role="list" aria-label="ভোটের ফলাফল">
         ${ranked
@@ -1023,13 +988,13 @@
             const pct = pctOfTotal(d.count, total);
             const mine = localId === d.id;
             return `
-            <article class="vote-bar-card ${mine ? "is-mine" : ""} ${hadPrev ? "is-settled" : ""}" role="listitem" style="--i:${i}" data-bar-id="${d.id}" data-count="${d.count}">
+            <article class="vote-bar-card ${mine ? "is-mine" : ""} ${hadPrev ? "is-settled" : ""}" role="listitem" style="--i:${i}" data-bar-id="${d.id}">
               <div class="vote-bar-card__meta">
                 <div>
                   <p class="font-ui text-xs text-amber-200/80">${d.num}${mine ? " · আপনার ভোট" : ""}</p>
                   <h4 class="font-display text-xl md:text-2xl mt-1">${d.name}</h4>
                 </div>
-                <p class="font-ui text-amber-200 whitespace-nowrap">${bnVotes(d.count)} · ${bn(pct)}%</p>
+                <p class="font-ui text-amber-200 whitespace-nowrap">${bnPct(pct)}</p>
               </div>
               <div class="vote-bar-track" aria-hidden="true">
                 <div class="vote-bar-fill" data-bar-w="${pct}"></div>
@@ -1370,6 +1335,7 @@
     const changing = allowChange && state.voteChanging;
     const locked = !!votedId && !changing;
     const counts = (state.voteResults && state.voteResults.counts) || {};
+    const totalVotes = (state.voteResults && state.voteResults.totalVotes) || 0;
     // Cards choreograph in only on the first paint of this visit; re-renders after
     // a vote keep them settled so the confirm pulse is the only thing that moves.
     const settled = wrap.dataset.entered === "1";
@@ -1378,7 +1344,7 @@
     wrap.innerHTML = window.DESTINATIONS.map((d, i) => {
       const selected = votedId === d.id && !changing;
       const disabled = locked && !selected;
-      const count = counts[d.id] || 0;
+      const pct = pctOfTotal(counts[d.id] || 0, totalVotes);
       const lockedOther = locked && !selected;
       let voteBtnLabel = "ভোট দিন";
       if (changing) voteBtnLabel = votedId === d.id ? "এখানে রাখুন" : "এতে বদলান";
@@ -1401,7 +1367,7 @@
       return `<article class="vote-card dest-card reveal ${settled ? "visible is-settled" : ""} rounded-2xl overflow-hidden bg-[var(--surface)] ${selected ? "selected" : ""} ${disabled ? "vote-card--dim" : ""} ${changing ? "vote-card--changing" : ""}" data-dest="${d.id}" style="--i:${i};--accent:${d.accent || "#e9b44c"}">
         <div class="img-shimmer card-frame relative">
           <img src="${d.hero}" alt="" class="card-media h-40 w-full object-cover" loading="lazy" decoding="async" width="640" height="320" data-fade />
-          <span class="vote-count-badge" aria-label="${bnVotes(count)}" data-vote-count="${d.id}">${bnVotes(count)}</span>
+          <span class="vote-count-badge" aria-label="${bnPct(pct)}" data-vote-count="${d.id}">${bnPct(pct)}</span>
         </div>
         <div class="p-5 space-y-3">
           <p class="text-xs font-ui text-amber-200">${d.num} · ${d.tagline}</p>
@@ -1643,27 +1609,18 @@
     if (!results) return;
     const prevCounts = lastBadgeCounts;
     lastBadgeCounts = { ...results.counts };
+    const total = results.totalVotes || 0;
     $$("[data-vote-count]").forEach((el) => {
       const id = el.getAttribute("data-vote-count");
       const n = results.counts[id] || 0;
       const prev = prevCounts ? Number(prevCounts[id] || 0) : NaN;
-      el.setAttribute("aria-label", bnVotes(n));
+      const label = bnPct(pctOfTotal(n, total));
+      el.setAttribute("aria-label", label);
+      el.textContent = label;
       if (Motion && jsMotion && !Number.isNaN(prev) && prev !== n) {
-        // Count from the old value to the new one, keeping the "ভোট" suffix.
-        const from = prev;
-        const start = performance.now();
-        const tick = (now) => {
-          const t = Math.min(1, (now - start) / 500);
-          const e = 1 - Math.pow(1 - t, 3);
-          el.textContent = bnVotes(Math.round(from + (n - from) * e));
-          if (t < 1) requestAnimationFrame(tick);
-        };
-        requestAnimationFrame(tick);
         el.classList.remove("is-bump");
         void el.offsetWidth;
         el.classList.add("is-bump");
-      } else {
-        el.textContent = bnVotes(n);
       }
     });
   }
