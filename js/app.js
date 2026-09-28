@@ -726,7 +726,7 @@
         <div class="space-y-3">
           ${items
             .map(
-              (item, ji) => `<article class="journey-row rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 grid md:grid-cols-[100px_1fr] gap-3" style="--ji:${ji}">
+              (item, ji) => `<article class="journey-row rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 grid md:grid-cols-[minmax(7.5rem,12rem)_1fr] gap-3" style="--ji:${ji}">
               <p class="font-ui text-amber-200">${item.day}</p>
               <p class="leading-relaxed">${item.plan}</p>
             </article>`
