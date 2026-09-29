@@ -15,7 +15,7 @@ window.DESTINATIONS = [
   {
     "id": "sundarbans",
     "num": "০১",
-    "name": "সুন্দরবন ক্রুজ",
+    "name": "সুন্দরবন",
     "short": "সুন্দরবন",
     "tagline": "নদীতে ভাসমান অ্যাডভেঞ্চার",
     "personality": "বন্য · একসাথে · জাহাজজীবন",

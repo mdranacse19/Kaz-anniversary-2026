@@ -1376,7 +1376,7 @@
       ? "😜 **চুরামি বাদ দিয়ে সঠিক Employee ID প্রদান করুন!**"
       : "";
     const nameMsg = codes.includes("name_not_found")
-      ? "ভাই, Database-এর সাথে তর্ক করে লাভ নেই—এই নামে কাউকে সে চেনে না! 😜"
+      ? "মাসুদ তুই কি ভালো হবি না? 😜"
       : "";
     showModalError($("#voteEmployeeIdError"), idMsg);
     showModalError($("#voteNameFieldError"), nameMsg);
@@ -1408,7 +1408,7 @@
     const name = (nameInput?.value || "").replace(/\s+/g, " ").trim();
     const email = (emailInput?.value || "").trim();
     showModalError($("#voteEmployeeIdError"), employeeId ? "" : "😜 **চুরামি বাদ দিয়ে সঠিক Employee ID প্রদান করুন!**");
-    showModalError($("#voteNameFieldError"), name ? "" : "ভাই, Database-এর সাথে তর্ক করে লাভ নেই—এই নামে কাউকে সে চেনে না! 😜");
+    showModalError($("#voteNameFieldError"), name ? "" : "মাসুদ তুই কি ভালো হবি না? 😜");
     showModalError(err, "");
     setExistingOtpOffer(false);
     if (!employeeId || !name || !email) {

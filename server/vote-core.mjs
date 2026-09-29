@@ -6,7 +6,7 @@ import { createHash, randomInt } from "node:crypto";
 
 export const DEST_IDS = ["sundarbans", "sylhet", "sajekkaptai", "nepal", "bandarban", "coxstmartin"];
 export const DEST_NAMES = {
-  sundarbans: "সুন্দরবন ক্রুজ",
+  sundarbans: "সুন্দরবন",
   sylhet: "সিলেট + শ্রীমঙ্গল",
   sajekkaptai: "সাজেক + কাপ্তাই",
   nepal: "নেপাল · কাঠমান্ডু + পোখরা",
