@@ -5,6 +5,14 @@
 import { createHash, randomInt } from "node:crypto";
 
 export const DEST_IDS = ["sundarbans", "sylhet", "sajekkaptai", "nepal", "bandarban", "coxstmartin"];
+export const DEST_NAMES = {
+  sundarbans: "সুন্দরবন ক্রুজ",
+  sylhet: "সিলেট + শ্রীমঙ্গল",
+  sajekkaptai: "সাজেক + কাপ্তাই",
+  nepal: "নেপাল · কাঠমান্ডু + পোখরা",
+  bandarban: "বান্দরবান",
+  coxstmartin: "কক্সবাজার এবং সেন্টমার্টিন",
+};
 export const OTP_TTL_MS = 10 * 60 * 1000;
 export const OTP_MAX_ATTEMPTS = 5;
 export const OTP_RESEND_WAIT_MS = 60 * 1000;

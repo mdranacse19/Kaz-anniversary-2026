@@ -1245,6 +1245,7 @@
   let otpEmployeeId = "";
   let otpFormBusy = false;
   let otpResendTimer = 0;
+  let otpExpiryTimer = 0;
   let pendingOtp = null;
 
   function closeVoteNameModal(result) {
@@ -1461,10 +1462,33 @@
   function rememberPendingOtp(requested) {
     pendingOtp = {
       ...readIdentityFields(),
-      destinationId: identityDestinationId,
+      // A live code stays tied to the destination it was first sent for.
+      destinationId: (requested && requested.destinationId) || identityDestinationId,
       expired: false,
       resendAt: resendAtFrom(requested),
     };
+    watchPendingOtpExpiry(requested);
+  }
+
+  /* While a code is live, the cards offer only "কোড দিন". At expiry the vote buttons return. */
+  function watchPendingOtpExpiry(response) {
+    window.clearTimeout(otpExpiryTimer);
+    otpExpiryTimer = 0;
+    const seconds = Number(response && response.expiresIn) || 0;
+    if (!pendingOtp || seconds <= 0) return;
+    const watched = pendingOtp;
+    otpExpiryTimer = window.setTimeout(() => {
+      otpExpiryTimer = 0;
+      if (pendingOtp !== watched) return;
+      pendingOtp.expired = true;
+      pendingOtp.resendAt = 0;
+      syncOtpResend();
+      if (state.view === "finale") renderFinale();
+    }, seconds * 1000);
+  }
+
+  function otpIsLive() {
+    return !!(pendingOtp && !pendingOtp.expired);
   }
 
   function continueWithExistingOtp() {
@@ -1559,6 +1583,7 @@
     if (requested && requested.ok) {
       pendingOtp.expired = false;
       pendingOtp.resendAt = resendAtFrom(requested);
+      watchPendingOtpExpiry(requested);
       if (input) input.value = "";
       showOtpStatus(
         requested.existing
@@ -1699,28 +1724,53 @@
       else if (state.voteBusy) voteBtnLabel = "ভোট দিন";
 
       const resumeHere = !!(pendingOtp && pendingOtp.destinationId === d.id && !locked);
+      // A live code belongs to one destination: no other vote can start until it is used or expires.
+      const codeLocked = otpIsLive() && !locked && !changing;
       const resumeControls = resumeHere && !pendingOtp.expired
-        ? `<button type="button" class="btn-ghost focus-ring rounded-full px-4 py-2 text-sm cursor-pointer font-medium" data-resume-otp="${d.id}">কোড দিন</button>`
+        ? `<button type="button" class="btn-primary focus-ring rounded-full px-4 py-2 text-sm cursor-pointer font-medium" data-resume-otp="${d.id}">কোড দিন</button>`
         : resumeHere
           ? `<p class="w-full text-sm text-rose-300">কোডের সময় শেষ। নতুন কোড পাঠাতে নিচের বোতাম চাপুন।</p>`
           : "";
 
+      // Watermark seal pressed into the photo of the card you voted for.
+      const from = window.TOUR_META?.from || "ঢাকা";
+      const sealName = d.short || d.name;
+      // Long names shrink to stay inside the inner ring.
+      const sealNameSize = [...sealName].length >= 9 ? 28 : 34;
       const pass =
         locked && selected
-          ? `<div class="boarding-pass" role="group" aria-label="বোর্ডিং পাস">
-          <div class="boarding-pass__main">
-            <p class="boarding-pass__label">বোর্ডিং পাস · KAZ ২০২৬</p>
-            <p class="boarding-pass__route"><span>${window.TOUR_META?.from || "ঢাকা"}</span><i data-lucide="plane" aria-hidden="true"></i><span>${d.short || d.name}</span></p>
-            <p class="boarding-pass__date">${window.TOUR_META?.window || ""}</p>
-          </div>
-          <div class="boarding-pass__stub" aria-hidden="true"><span>${d.num}</span><span>আসন · সবাই</span></div>
-          <span class="pass-stamp" aria-hidden="true">ভোট গণনা হয়েছে</span>
+          ? `<div class="vote-seal" role="img" aria-label="ভোট গণনা হয়েছে। ${from} থেকে ${d.short || d.name}, ${window.TOUR_META?.window || ""}">
+          <svg viewBox="0 0 200 200" aria-hidden="true" focusable="false">
+            <defs>
+              <path id="sealArcTop" d="M 24.66 120.19 A 78 78 0 1 1 175.34 120.19" />
+              <path id="sealArcBottom" d="M 100 100 m -86 0 a 86 86 0 0 0 172 0" />
+              <filter id="sealInk" x="-5%" y="-5%" width="110%" height="110%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="grain" />
+                <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.1 1.3" result="worn" />
+                <feComposite in="SourceGraphic" in2="worn" operator="in" />
+              </filter>
+            </defs>
+            <circle class="vote-seal__disc" cx="100" cy="100" r="96" />
+            <g filter="url(#sealInk)">
+              <circle class="vote-seal__ring" cx="100" cy="100" r="96" stroke-width="3.5" />
+              <circle class="vote-seal__ring" cx="100" cy="100" r="89.5" stroke-width="1" />
+              <circle class="vote-seal__ring" cx="100" cy="100" r="66" stroke-width="1.4" stroke-dasharray="1.5 4.5" stroke-linecap="round" />
+              <line class="vote-seal__ring" x1="58" y1="117" x2="142" y2="117" stroke-width="1.2" />
+            </g>
+            <text class="vote-seal__arc"><textPath href="#sealArcTop" startOffset="50%" text-anchor="middle">KAZ SOFTWARE • ANNIVERSARY TRIP</textPath></text>
+            <text class="vote-seal__arc"><textPath href="#sealArcBottom" startOffset="50%" text-anchor="middle">★ 2026 ★</textPath></text>
+            <text class="vote-seal__small" x="100" y="68" text-anchor="middle">ভোট গণনা হয়েছে</text>
+            <text class="vote-seal__name" x="100" y="106" text-anchor="middle" style="font-size:${sealNameSize}px">${sealName}</text>
+            <text class="vote-seal__date" x="100" y="135" text-anchor="middle">${window.TOUR_META?.window || ""}</text>
+            <text class="vote-seal__small" x="100" y="152" text-anchor="middle">${from} থেকে</text>
+          </svg>
         </div>`
           : "";
       return `<article class="vote-card dest-card reveal ${settled ? "visible is-settled" : ""} rounded-2xl overflow-hidden bg-[var(--surface)] ${selected ? "selected" : ""} ${disabled ? "vote-card--dim" : ""} ${changing ? "vote-card--changing" : ""}" data-dest="${d.id}" style="--i:${i};--accent:${d.accent || "#e9b44c"}">
         <div class="img-shimmer card-frame relative">
           <img src="${d.hero}" alt="" class="card-media h-40 w-full object-cover" loading="lazy" decoding="async" width="640" height="320" data-fade />
           <span class="vote-count-badge" aria-label="${bnPct(pct)}" data-vote-count="${d.id}">${bnPct(pct)}</span>
+          ${pass}
         </div>
         <div class="p-5 space-y-3">
           <p class="text-xs font-ui text-amber-200">${d.num} · ${d.tagline}</p>
@@ -1731,7 +1781,9 @@
             ${
               locked && selected
                 ? `<span class="vote-cast-label inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-amber-200 border border-amber-200/30">ভোট দেওয়া হয়েছে ✓</span>`
-                : `<button type="button"
+                : codeLocked
+                  ? ""
+                  : `<button type="button"
               class="${lockedOther ? "btn-ghost" : "btn-primary"} focus-ring rounded-full px-4 py-2 text-sm cursor-pointer font-medium inline-flex items-center gap-2"
               data-vote="${d.id}"
               ${locked || state.voteBusy ? "disabled" : ""}
@@ -1741,7 +1793,6 @@
             }
             ${resumeControls}
           </div>
-          ${pass}
         </div>
       </article>`;
     }).join("");

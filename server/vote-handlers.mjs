@@ -7,7 +7,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  DEST_NAMES,
   OTP_RESEND_WAIT_MS,
+  OTP_TTL_MS,
   assessRoster,
   buildOtpRecord,
   canonicalEmployeeId,
@@ -140,22 +142,41 @@ function mailConfigured() {
   return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && process.env.MAIL_FROM);
 }
 
-function otpMailText(otp) {
+function otpMailText(otp, destinationId) {
+  const destination = DEST_NAMES[destinationId];
   return [
-    "KAZ Software অ্যানিভার্সারি ট্যুর ২০২৬",
+    "KAZ Software অ্যানিভার্সারি ট্রিপ ২০২৬",
     "",
-    "ভোট নিশ্চিত করার কোড:",
+    "আপনার ভোটের কোড:",
     otp,
     "",
-    "এই কোড ১০ মিনিটের জন্য। ওয়েবসাইটে গিয়ে এই কোডটি লিখে ভোট শেষ করুন।",
+    destination ? `আপনার পছন্দ: ${destination}` : "",
+    "কোডটি ১০ মিনিট কাজ করবে, একবারই ব্যবহার করা যাবে।",
+    "ওয়েবসাইটে গিয়ে কোডটি লিখলেই ভোট নিশ্চিত হবে।",
+    "",
     "Do not share this OTP with anyone.",
+    "আপনি ভোট দিতে না চেয়ে থাকলে এই ইমেইলটি উপেক্ষা করুন।",
     "",
     "KAZ Software",
-  ].join("\n");
+  ]
+    .filter((line, i, all) => line !== "" || all[i - 1] !== "")
+    .join("\n");
 }
 
-function otpMailHtml(otp) {
+/* Mail clients drop <style>, web fonts, and most CSS: tables and inline styles only. */
+function otpMailHtml(otp, destinationId) {
   const code = String(otp).replace(/[^\d]/g, "");
+  const destination = DEST_NAMES[destinationId] || "";
+  const sans = "'Hind Siliguri','Noto Sans Bengali','Segoe UI',Helvetica,Arial,sans-serif";
+  const serif = "'Noto Serif Bengali',Georgia,'Times New Roman',serif";
+  const mono = "'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace";
+  const route = destination
+    ? `<tr>
+                  <td style="padding:18px 22px 0;font-family:${sans};font-size:13px;line-height:1.5;color:#1f4d40;">
+                    ঢাকা &nbsp;&rarr;&nbsp; <strong style="font-weight:600;">${destination}</strong>
+                  </td>
+                </tr>`
+    : "";
   return `<!DOCTYPE html>
 <html lang="bn">
 <head>
@@ -166,50 +187,81 @@ function otpMailHtml(otp) {
   <title>ভোটের কোড</title>
 </head>
 <body style="margin:0;padding:0;background:#ffffff;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="background:#ffffff;padding:24px 12px;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#ffffff;font-size:1px;line-height:1px;">
+    কোডটি ১০ মিনিট কাজ করবে। ওয়েবসাইটে লিখলেই ভোট নিশ্চিত হবে।
+  </div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="background:#ffffff;">
     <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="max-width:560px;background:#ffffff;border:1px solid #e2e6e4;border-radius:16px;">
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="max-width:520px;background:#ffffff;border:1px solid #dfe5e2;border-radius:14px;">
           <tr>
-            <td style="padding:28px 24px 8px;font-family:Georgia,'Noto Serif Bengali',serif;color:#9a6a00;font-size:13px;letter-spacing:0.08em;">
-              KAZ SOFTWARE
-            </td>
+            <td height="5" bgcolor="#e9b44c" style="height:5px;line-height:5px;font-size:0;background:#e9b44c;border-radius:13px 13px 0 0;">&nbsp;</td>
           </tr>
           <tr>
-            <td style="padding:0 24px 8px;font-family:Georgia,'Noto Serif Bengali',serif;color:#13201c;font-size:26px;line-height:1.35;">
-              অ্যানিভার্সারি ট্যুর ২০২৬
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:8px 24px 20px;font-family:'Hind Siliguri',system-ui,sans-serif;color:#4a5a54;font-size:15px;line-height:1.6;">
-              ভোট নিশ্চিত করতে নিচের কোডটি ওয়েবসাইটে লিখুন। কোডটি ১০ মিনিট পর্যন্ত কাজ করবে।
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 24px 20px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#fdf8ec" style="background:#fdf8ec;border-radius:12px;border:1px solid #e9b44c;">
+            <td style="padding:22px 28px 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td align="center" style="padding:22px 16px 6px;font-family:system-ui,sans-serif;color:#9a6a00;font-size:12px;letter-spacing:0.14em;">
-                    আপনার কোড
+                  <td style="font-family:${sans};font-size:15px;font-weight:700;color:#1f4d40;">KAZ Software</td>
+                  <td align="right" style="font-family:${sans};font-size:13px;color:#5b6b65;">অ্যানিভার্সারি ট্রিপ ২০২৬</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:26px 28px 0;font-family:${serif};font-size:27px;line-height:1.3;color:#10201b;">
+              আপনার ভোটের কোড
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 28px 0;font-family:${sans};font-size:15px;line-height:1.65;color:#44534d;">
+              কোডটি ওয়েবসাইটে লিখলেই আপনার ভোট নিশ্চিত হবে।
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:22px 28px 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#f3f8f6" style="background:#f3f8f6;border:1px solid #c9dcd5;border-radius:12px;">
+                ${route}
+                <tr>
+                  <td align="center" style="padding:${destination ? "14px" : "26px"} 12px 22px 22px;font-family:${mono};font-size:40px;line-height:1.2;font-weight:700;letter-spacing:10px;color:#10201b;">
+                    ${code}
                   </td>
                 </tr>
                 <tr>
-                  <td align="center" style="padding:4px 16px 22px;font-family:ui-monospace,Menlo,Consolas,monospace;color:#13201c;font-size:36px;letter-spacing:0.35em;font-weight:700;">
-                    ${code}
+                  <td style="padding:0 22px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                      <tr><td height="1" style="height:1px;line-height:1px;font-size:0;border-top:1px dashed #9fbdb2;">&nbsp;</td></tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 22px 14px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="font-family:${sans};font-size:13px;line-height:1.5;color:#44534d;">মেয়াদ <strong style="color:#10201b;font-weight:600;">১০ মিনিট</strong></td>
+                        <td align="right" style="font-family:${sans};font-size:13px;line-height:1.5;color:#44534d;">একবারই ব্যবহার করা যাবে</td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
           <tr>
-            <td style="padding:0 24px 24px;font-family:'Hind Siliguri',system-ui,sans-serif;color:#13201c;font-size:14px;line-height:1.6;">
-              Do not share this OTP with anyone.
+            <td style="padding:20px 28px 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td width="3" bgcolor="#e9b44c" style="width:3px;background:#e9b44c;font-size:0;line-height:0;">&nbsp;</td>
+                  <td style="padding:2px 0 2px 12px;font-family:${sans};font-size:14px;line-height:1.6;color:#10201b;">
+                    Do not share this OTP with anyone.<br />
+                    <span style="color:#44534d;">কোডটি কাউকে জানাবেন না। KAZ-এর কেউ এই কোড চাইবে না।</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <tr>
-            <td style="padding:16px 24px 22px;border-top:1px solid #e2e6e4;font-family:system-ui,sans-serif;color:#6b7a74;font-size:12px;line-height:1.5;">
-              KAZ Software · Anniversary Tour 2026<br />
-              এই ইমেইলটি আপনার ভোটের জন্য পাঠানো হয়েছে।
+            <td style="padding:22px 28px 24px;font-family:${sans};font-size:12px;line-height:1.6;color:#5b6b65;">
+              আপনি ভোট দিতে না চেয়ে থাকলে এই ইমেইলটি উপেক্ষা করুন। কোড ছাড়া কোনো ভোট গণনা হয় না।
             </td>
           </tr>
         </table>
@@ -220,7 +272,7 @@ function otpMailHtml(otp) {
 </html>`;
 }
 
-async function sendOtpMail(to, otp) {
+async function sendOtpMail(to, otp, destinationId) {
   const { default: nodemailer } = await import("nodemailer");
   const transport = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -235,8 +287,8 @@ async function sendOtpMail(to, otp) {
     from: process.env.MAIL_FROM,
     to,
     subject: "KAZ Anniversary Tour 2026 — ভোটের কোড",
-    text: otpMailText(otp),
-    html: otpMailHtml(otp),
+    text: otpMailText(otp, destinationId),
+    html: otpMailHtml(otp, destinationId),
   });
 }
 
@@ -269,7 +321,16 @@ async function handleRequest(body) {
   const gate = resendGate(previous, nowMs);
   if (reusableOtp(previous, nowMs)) {
     if (!body.resend) {
-      return { status: 200, body: { ok: true, existing: true, resendAfter: gate.ok ? 0 : gate.retryAfter } };
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          existing: true,
+          destinationId: previous.destinationId || null,
+          resendAfter: gate.ok ? 0 : gate.retryAfter,
+          expiresIn: Math.max(0, Math.ceil((Number(previous.expiresAt) - nowMs) / 1000)),
+        },
+      };
     }
     if (!gate.ok) return { status: 429, body: gate };
   }
@@ -289,7 +350,7 @@ async function handleRequest(body) {
   });
   await otpRef.set(record);
   try {
-    await sendOtpMail(checked.email, otp);
+    await sendOtpMail(checked.email, otp, checked.destinationId);
   } catch (err) {
     if (previous) await otpRef.set(previous).catch(() => {});
     else await otpRef.delete().catch(() => {});
@@ -297,7 +358,15 @@ async function handleRequest(body) {
     return { status: 502, body: { ok: false, error: "mail_failed" } };
   }
   console.log("[vote-api] otp sent", checked.employeeId);
-  return { status: 200, body: { ok: true, existing: false, resendAfter: OTP_RESEND_WAIT_MS / 1000 } };
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      existing: false,
+      resendAfter: OTP_RESEND_WAIT_MS / 1000,
+      expiresIn: OTP_TTL_MS / 1000,
+    },
+  };
 }
 
 async function handleStatus(body) {
@@ -332,6 +401,8 @@ async function handleVerify(body, ip) {
   });
   return { status: result.ok ? 200 : 400, body: result };
 }
+
+export { otpMailHtml, otpMailText };
 
 export const routes = {
   "/api/vote/request": (body) => handleRequest(body),

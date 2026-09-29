@@ -1,4 +1,4 @@
-# KAZ Software অ্যানিভার্সারি ট্যুর ২০২৬
+# KAZ Software অ্যানিভার্সারি ট্রিপ ২০২৬
 
 স্ট্যাটিক সাইট + **Firebase Firestore** ভোট (Vercel-friendly, Node সার্ভার লাগে না)।
 
@@ -53,7 +53,7 @@ npm run vote-api
 - `js/motion.js` — `window.Motion`: view exit, nav/tab pill, shared-element open (কার্ড ছবি → গল্পের হেডার), journey wipe (CTA), page turn, count-up, dust, card cursor
 - `prefers-reduced-motion: reduce` → শুধু opacity, কোনো movement/loop নেই
 - Deep link: `#destinations`, `#story/<id>`, `#finale`
-- ভোটের পর: বোর্ডিং পাস + স্ট্যাম্প, রুটে ঢাকা → আপনার গন্তব্যে ট্রাভেলার, "দেখা হবে ২৫ ডিসেম্বর" কার্ড (দিন গণনা)
+- ভোটের পর: ছবির ওপর জলছাপ সিল (`.vote-seal`), রুটে ঢাকা → আপনার গন্তব্যে ট্রাভেলার, "দেখা হবে ২৫ ডিসেম্বর" কার্ড (দিন গণনা)
 - পাসপোর্ট: কোনো গল্পের ৫টি অধ্যায় পড়লে চ্যাপ্টার বারে স্ট্যাম্প ও ফাইনাল রুটে "পড়া হয়েছে ✓" চিহ্ন (`localStorage` কী `kaz2026.passport`, শুধু এই ডিভাইসে)
 - ফাইনাল রুট JS দিয়ে আঁকা হয় (`renderFinaleRoute`), কন্টেইনারের আসল পিক্সেল প্রস্থে
 - গল্প: ট্যাব বারের নিচে অধ্যায়-প্রগ্রেস লাইন, "পরবর্তী · <অধ্যায়>" বোতাম, অনুভূতির লাইন একে একে আসে, করব-এর আইকন নিজে আঁকা হয়, হেডারের ছবি স্ক্রলে ধীরে সরে (`animation-timeline: view()`)

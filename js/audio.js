@@ -156,7 +156,7 @@
   if ("mediaSession" in navigator && window.MediaMetadata) {
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: "KAZ Software অ্যানিভার্সারি ট্যুর ২০২৬",
+        title: "KAZ Software অ্যানিভার্সারি ট্রিপ ২০২৬",
         artist: "Almost Bliss — Kevin MacLeod",
       });
       navigator.mediaSession.setActionHandler("pause", () => toggle());

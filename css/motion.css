@@ -1165,119 +1165,73 @@ html.js-motion #finaleGrid .dest-card.reveal.visible.vote-card--confirmed {
        timeline, live bumps, ending card
    ———————————————————————————————————————————————— */
 
-/* Boarding pass: shown on the card you voted for */
-.boarding-pass {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  margin-top: 0.9rem;
-  border-radius: 0.9rem;
-  border: 1px solid rgba(233, 180, 76, 0.35);
-  background:
-    linear-gradient(135deg, rgba(233, 180, 76, 0.16), rgba(19, 32, 28, 0.9) 60%),
-    var(--surface-2);
-  overflow: hidden;
+/* Vote seal: a watermark pressed into the photo of the card you voted for */
+/* photo keeps the same height as every other card */
+.vote-card.selected .card-frame .card-media {
+  filter: brightness(0.6) saturate(0.95);
 }
-.boarding-pass__main {
-  padding: 0.8rem 0.95rem 0.85rem;
-  min-width: 0;
-}
-.boarding-pass__label {
-  margin: 0;
-  font-family: var(--font-ui);
-  font-size: 0.62rem;
-  letter-spacing: 0.06em;
-  color: #f0d78c;
-  opacity: 0.85;
-}
-.boarding-pass__route {
-  margin: 0.25rem 0 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-family: var(--font-display);
-  font-size: 1.15rem;
-  line-height: 1.3;
-  color: var(--text);
-}
-.boarding-pass__route svg {
-  width: 1rem;
-  height: 1rem;
-  color: var(--amber);
-  transform: rotate(0deg);
-}
-.boarding-pass__date {
-  margin: 0.2rem 0 0;
-  font-family: var(--font-ui);
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-.boarding-pass__stub {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.2rem;
-  padding: 0.8rem 0.85rem;
-  border-left: 1px dashed rgba(233, 180, 76, 0.5);
-  font-family: var(--font-ui);
-  font-size: 0.66rem;
-  color: #f0d78c;
-  text-align: center;
-  white-space: nowrap;
-  transform-origin: left center;
-}
-/* perforation notches */
-.boarding-pass__stub::before,
-.boarding-pass__stub::after {
+.vote-card.selected .card-frame::after {
   content: "";
   position: absolute;
-  left: -0.4rem;
-  width: 0.8rem;
-  height: 0.8rem;
-  border-radius: 50%;
-  background: var(--surface);
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(10, 18, 16, 0.1) 30%, rgba(10, 18, 16, 0.6) 100%);
+  pointer-events: none;
 }
-.boarding-pass__stub::before { top: -0.4rem; }
-.boarding-pass__stub::after { bottom: -0.4rem; }
-.pass-stamp {
+.vote-seal {
   position: absolute;
-  right: 5.5rem;
-  top: 0.55rem;
-  padding: 0.22rem 0.55rem;
-  border: 2px solid rgba(93, 214, 196, 0.85);
-  border-radius: 0.35rem;
-  color: #5dd6c4;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.vote-seal svg {
+  width: 9.25rem;
+  height: 9.25rem;
+  color: #f9f1d9;
+  opacity: 0.94;
+  transform: rotate(-11deg);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+}
+/* tinted disc keeps the ink readable on bright photos (snow, sky) */
+.vote-seal__disc {
+  fill: rgba(8, 16, 14, 0.42);
+}
+.vote-seal__ring {
+  fill: none;
+  stroke: currentColor;
+}
+.vote-seal text {
+  fill: currentColor;
+}
+.vote-seal__arc {
   font-family: var(--font-ui);
-  font-size: 0.6rem;
-  letter-spacing: 0.04em;
-  transform: rotate(-8deg);
-  opacity: 0.95;
-  mix-blend-mode: screen;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
 }
-html.js-motion .vote-card.is-stamping .pass-stamp {
-  animation: stampIn 620ms var(--ease-out-expo) 260ms both;
+.vote-seal__small {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
 }
-html.js-motion .vote-card.is-stamping .boarding-pass__stub {
-  animation: stubTear 900ms var(--ease-out) 620ms both;
+.vote-seal__name {
+  font-family: var(--font-display);
+  font-size: 33px;
 }
-html.js-motion .vote-card.is-stamping .boarding-pass {
-  animation: passIn 520ms var(--ease-out-expo) both;
+.vote-seal__date {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 500;
 }
-@keyframes stampIn {
-  0% { opacity: 0; transform: rotate(-16deg) scale(1.9); }
-  55% { opacity: 1; transform: rotate(-7deg) scale(0.92); }
-  75% { transform: rotate(-8deg) scale(1.05); }
-  100% { opacity: 0.95; transform: rotate(-8deg) scale(1); }
+html.js-motion .vote-card.is-stamping .vote-seal svg {
+  animation: sealPress 680ms var(--ease-out-expo) 220ms both;
 }
-@keyframes stubTear {
-  0% { transform: rotate(0deg) translateX(0); }
-  35% { transform: rotate(3deg) translateX(3px); }
-  100% { transform: rotate(0deg) translateX(0); }
-}
-@keyframes passIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
+@keyframes sealPress {
+  0% { opacity: 0; transform: rotate(-20deg) scale(1.7); }
+  55% { opacity: 1; transform: rotate(-10deg) scale(0.95); }
+  75% { transform: rotate(-11deg) scale(1.03); }
+  100% { opacity: 0.94; transform: rotate(-11deg) scale(1); }
 }
 
 /* Route traveller + hover lighting + passport marks */
@@ -1648,10 +1602,6 @@ html.js-motion .ending-plane {
   .ending-card__art {
     max-width: 12rem;
   }
-  .pass-stamp {
-    right: 4.6rem;
-    font-size: 0.55rem;
-  }
 }
 
 /* Reduced motion for this block: everything static, nothing loops */
@@ -1661,9 +1611,7 @@ html.js-motion .ending-plane {
   }
   .journey-line,
   .journey-rider,
-  .pass-stamp,
-  .boarding-pass,
-  .boarding-pass__stub,
+  .vote-seal svg,
   .passport-stamp,
   .ending-loop__path,
   .ending-plane,
