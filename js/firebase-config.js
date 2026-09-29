@@ -6,13 +6,23 @@
  * 4. Deploy rules from firestore.rules
  * 5. Paste your web app config below (apiKey is public; rules protect data)
  */
+// window.FIREBASE_CONFIG = {
+//   apiKey: "AIzaSyCRufJhoag5eJjLksTCCaIQ6pVVtxQtz9w",
+//   authDomain: "kaz-software-8007a.firebaseapp.com",
+//   projectId: "kaz-software-8007a",
+//   storageBucket: "kaz-software-8007a.firebasestorage.app",
+//   messagingSenderId: "799186249287",
+//   appId: "1:799186249287:web:393bbc6a78c9cc5b9c7362",
+// };
+
+// New config for Kaz's anniversary
 window.FIREBASE_CONFIG = {
-  apiKey: "AIzaSyCRufJhoag5eJjLksTCCaIQ6pVVtxQtz9w",
-  authDomain: "kaz-software-8007a.firebaseapp.com",
-  projectId: "kaz-software-8007a",
-  storageBucket: "kaz-software-8007a.firebasestorage.app",
-  messagingSenderId: "799186249287",
-  appId: "1:799186249287:web:393bbc6a78c9cc5b9c7362",
+  apiKey: "AIzaSyA2MdvQL6acXwSxPDsvSuAoq_EKPPZSXeU",
+  authDomain: "kaz-anniversary-2026.firebaseapp.com",
+  projectId: "kaz-anniversary-2026",
+  storageBucket: "kaz-anniversary-2026.firebasestorage.app",
+  messagingSenderId: "790717594675",
+  appId: "1:790717594675:web:5a69f2abf8bc40ad673746",
 };
 
 // Config is filled — enable Firebase client.

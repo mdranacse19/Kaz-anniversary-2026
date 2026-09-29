@@ -234,8 +234,23 @@
 
   <div id="voteNameModal" class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="voteNameTitle">
     <div class="max-w-md w-full rounded-2xl bg-[var(--surface)] border border-[var(--line)] p-6 space-y-4">
-      <h3 id="voteNameTitle" class="font-display text-2xl">আপনার নাম লিখুন</h3>
+      <h3 id="voteNameTitle" class="font-display text-2xl">কর্মকর্তা পরিচয়</h3>
       <p id="voteNameDest" class="text-[var(--muted)] text-sm leading-relaxed"></p>
+      <label class="block space-y-2">
+        <span class="text-sm text-amber-200/90">এমপ্লয়ি আইডি</span>
+        <input
+          id="voteEmployeeId"
+          type="text"
+          name="employeeId"
+          autocomplete="off"
+          maxlength="20"
+          required
+          class="w-full rounded-xl bg-[var(--bg)] border border-[var(--line)] px-4 py-3 text-[var(--text)] caret-[var(--text)] placeholder:text-[var(--muted)] focus-ring outline-none"
+          placeholder="যেমন: KS010"
+          aria-describedby="voteEmployeeIdError"
+        />
+        <p id="voteEmployeeIdError" class="text-sm text-rose-300 hidden" role="alert"></p>
+      </label>
       <label class="block space-y-2">
         <span class="text-sm text-amber-200/90">নাম</span>
         <input
@@ -247,12 +262,55 @@
           required
           class="w-full rounded-xl bg-[var(--bg)] border border-[var(--line)] px-4 py-3 text-[var(--text)] caret-[var(--text)] placeholder:text-[var(--muted)] focus-ring outline-none"
           placeholder="যেমন: মাসুদ"
+          aria-describedby="voteNameFieldError"
+        />
+        <p id="voteNameFieldError" class="text-sm text-rose-300 hidden" role="alert"></p>
+      </label>
+      <label class="block space-y-2">
+        <span class="text-sm text-amber-200/90">ইমেইল</span>
+        <input
+          id="voteEmail"
+          type="email"
+          name="email"
+          autocomplete="email"
+          maxlength="80"
+          required
+          class="w-full rounded-xl bg-[var(--bg)] border border-[var(--line)] px-4 py-3 text-[var(--text)] caret-[var(--text)] placeholder:text-[var(--muted)] focus-ring outline-none"
+          placeholder="name@example.com"
         />
       </label>
       <p id="voteNameError" class="text-sm text-rose-300 hidden" role="alert"></p>
+      <p id="voteSendStatus" class="text-sm text-amber-200/90 hidden" role="status"></p>
       <div class="flex flex-wrap gap-3 pt-1">
-        <button id="voteNameConfirm" type="button" class="btn-primary focus-ring rounded-full px-5 py-2.5 cursor-pointer font-medium">ভোট নিশ্চিত করুন</button>
+        <button id="voteNameConfirm" type="button" class="btn-primary focus-ring rounded-full px-5 py-2.5 cursor-pointer font-medium">কোড পাঠান</button>
+        <button id="voteUseExistingOtp" type="button" class="btn-primary focus-ring rounded-full px-5 py-2.5 cursor-pointer font-medium hidden">Use Existing OTP</button>
         <button id="voteNameCancel" type="button" class="btn-ghost focus-ring rounded-full px-5 py-2.5 cursor-pointer">বাতিল</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="voteOtpModal" class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="voteOtpTitle">
+    <div class="max-w-md w-full rounded-2xl bg-[var(--surface)] border border-[var(--line)] p-6 space-y-4">
+      <h3 id="voteOtpTitle" class="font-display text-2xl">ইমেইলের কোড</h3>
+      <p id="voteOtpHint" class="text-[var(--muted)] text-sm leading-relaxed">আপনার ইমেইলে পাঠানো ৬ সংখ্যার কোডটি লিখুন।</p>
+      <label class="block space-y-2">
+        <span class="text-sm text-amber-200/90">কোড</span>
+        <input
+          id="voteOtpInput"
+          type="text"
+          inputmode="numeric"
+          name="otp"
+          autocomplete="one-time-code"
+          maxlength="6"
+          required
+          class="w-full rounded-xl bg-[var(--bg)] border border-[var(--line)] px-4 py-3 text-[var(--text)] caret-[var(--text)] placeholder:text-[var(--muted)] focus-ring outline-none tracking-[0.3em]"
+          placeholder="••••••"
+        />
+      </label>
+      <p id="voteOtpError" class="text-sm text-rose-300 hidden" role="alert"></p>
+      <div class="flex flex-wrap gap-3 pt-1">
+        <button id="voteOtpConfirm" type="button" class="btn-primary focus-ring rounded-full px-5 py-2.5 cursor-pointer font-medium">ভোট নিশ্চিত করুন</button>
+        <button id="voteOtpCancel" type="button" class="btn-ghost focus-ring rounded-full px-5 py-2.5 cursor-pointer">বাতিল</button>
       </div>
     </div>
   </div>

@@ -4,6 +4,12 @@
   "description": "KAZ Software Anniversary Tour 2026 — static site + Firebase votes",
   "scripts": {
     "start": "python3 -m http.server 8765",
+    "vote-api": "node server/vote-api.mjs",
+    "test": "node --test server/vote-core.test.mjs",
     "rebuild:tallies": "node scripts/rebuild-public-tallies-rest.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.5.0",
+    "nodemailer": "^7.0.6"
   }
 }

@@ -1093,7 +1093,13 @@
 
   async function refreshFinaleVoteUI(opts = {}) {
     if (!Vote) return;
-    const results = await Vote.getResults();
+    const resultsIn = await Vote.getResults();
+    const results =
+      resultsIn && resultsIn.publishedOk
+        ? resultsIn
+        : state.voteResults && state.voteResults.publishedOk
+          ? state.voteResults
+          : resultsIn;
     state.voteResults = results;
     const cast = results.localVote;
     const allowChange = canChangeVote();
@@ -1233,6 +1239,12 @@
   }
 
   let namePromptResolve = null;
+  let otpPromptResolve = null;
+  let identityDestinationId = "";
+  let identityFormBusy = false;
+  let otpEmployeeId = "";
+  let otpFormBusy = false;
+  let pendingOtp = null;
 
   function closeVoteNameModal(result) {
     const modal = $("#voteNameModal");
@@ -1259,30 +1271,53 @@
     window.setTimeout(finish, 220);
   }
 
-  /** Ask for voter name before casting. Resolves to trimmed name or null if cancelled. */
-  function promptVoterName(destinationId, opts) {
+  function showModalError(el, message) {
+    if (!el) return;
+    if (message) {
+      el.textContent = message;
+      el.classList.remove("hidden");
+    } else {
+      el.textContent = "";
+      el.classList.add("hidden");
+    }
+  }
+
+  function openModalEl(modal, focusEl) {
+    if (!modal) return;
+    modal.classList.remove("hidden", "is-open");
+    modal.classList.add("flex");
+    requestAnimationFrame(() => {
+      modal.classList.add("is-open");
+      focusEl?.focus();
+    });
+  }
+
+  /** Ask for employee id, name, and email. Resolves to those fields or null if cancelled. */
+  function promptVoterIdentity(destinationId, opts) {
     const modal = $("#voteNameModal");
-    const input = $("#voteNameInput");
+    const idInput = $("#voteEmployeeId");
+    const nameInput = $("#voteNameInput");
+    const emailInput = $("#voteEmail");
     const err = $("#voteNameError");
     const destLabel = $("#voteNameDest");
-    if (!modal || !input) return Promise.resolve(null);
+    if (!modal || !nameInput || !idInput || !emailInput) return Promise.resolve(null);
 
     const destName = getDestById(destinationId)?.name || destinationId;
     if (destLabel) {
-      destLabel.textContent = canChangeVote()
-        ? `পছন্দ: ${destName} — নাম দিয়ে ভোট নিশ্চিত করুন।`
-        : `পছন্দ: ${destName} — ভোট লক হয়ে যাবে।`;
+      destLabel.textContent = `পছন্দ: ${destName} — ভোট লক হয়ে যাবে।`;
     }
-    if (err) {
-      if (opts && opts.error) {
-        err.textContent = opts.error;
-        err.classList.remove("hidden");
-      } else {
-        err.classList.add("hidden");
-        err.textContent = "";
-      }
-    }
-    input.value = (opts && opts.value) || "";
+    const prior = (opts && opts.value) || {};
+    const fields = (opts && opts.fieldErrors) || {};
+    idInput.value = prior.employeeId || "";
+    nameInput.value = prior.name || "";
+    emailInput.value = prior.email || "";
+    identityDestinationId = destinationId;
+    showModalError($("#voteEmployeeIdError"), fields.employeeId || "");
+    showModalError($("#voteNameFieldError"), fields.name || "");
+    showModalError(err, opts && opts.error);
+    setIdentityFormBusy(false);
+    showIdentityStatus("");
+    setExistingOtpOffer(false);
 
     if (namePromptResolve) {
       const prev = namePromptResolve;
@@ -1292,28 +1327,243 @@
 
     return new Promise((resolve) => {
       namePromptResolve = resolve;
-      modal.classList.remove("hidden", "is-open");
-      modal.classList.add("flex");
-      requestAnimationFrame(() => {
-        modal.classList.add("is-open");
-        input.focus();
-      });
+      openModalEl(modal, fields.name && !fields.employeeId ? nameInput : idInput);
     });
   }
 
-  function submitVoteName() {
-    const input = $("#voteNameInput");
+  function readIdentityFields() {
+    return {
+      employeeId: ($("#voteEmployeeId")?.value || "").replace(/\s+/g, "").trim().slice(0, 20),
+      name: ($("#voteNameInput")?.value || "").replace(/\s+/g, " ").trim().slice(0, 60),
+      email: ($("#voteEmail")?.value || "").trim().slice(0, 80),
+    };
+  }
+
+  function setIdentityFormBusy(busy) {
+    identityFormBusy = busy;
+    const confirm = $("#voteNameConfirm");
+    [$("#voteEmployeeId"), $("#voteNameInput"), $("#voteEmail"), $("#voteNameCancel"), $("#voteUseExistingOtp")].forEach((el) => {
+      if (el) el.disabled = busy;
+    });
+    if (confirm) {
+      confirm.disabled = busy;
+      confirm.textContent = busy ? "OTP পাঠানো হচ্ছে…" : "কোড পাঠান";
+      confirm.setAttribute("aria-busy", busy ? "true" : "false");
+    }
+  }
+
+  function showIdentityStatus(message) {
+    const status = $("#voteSendStatus");
+    if (!status) return;
+    status.textContent = message || "";
+    status.classList.toggle("hidden", !message);
+  }
+
+  function setExistingOtpOffer(show) {
+    const btn = $("#voteUseExistingOtp");
+    if (!btn) return;
+    btn.classList.toggle("hidden", !show);
+    btn.disabled = identityFormBusy;
+  }
+
+  function applyIdentityRequestError(requested) {
+    const codes = Array.isArray(requested.errors) && requested.errors.length
+      ? requested.errors
+      : [requested.error];
+    const idMsg = codes.includes("id_not_found")
+      ? "😜 **চুরামি বাদ দিয়ে সঠিক Employee ID প্রদান করুন!**"
+      : "";
+    const nameMsg = codes.includes("name_not_found")
+      ? "ভাই, Database-এর সাথে তর্ক করে লাভ নেই—এই নামে কাউকে সে চেনে না! 😜"
+      : "";
+    showModalError($("#voteEmployeeIdError"), idMsg);
+    showModalError($("#voteNameFieldError"), nameMsg);
+    if (idMsg || nameMsg) return;
+    if (requested.warning) {
+      showModalError($("#voteNameError"), requested.warning);
+      return;
+    }
+    const copy = {
+      invalid_email: "ইমেইল ঠিকমতো লিখুন।",
+      invalid_id: "এমপ্লয়ি আইডি লিখুন।",
+      mail_not_configured: "মেইল সার্ভার এখনো সেটআপ হয়নি।",
+      mail_failed: "কোড পাঠানো যায়নি। একটু পর আবার চেষ্টা করুন।",
+      firebase_not_configured: "ভোট সার্ভার এখনো সেটআপ হয়নি।",
+      network: "নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।",
+      busy: "একটু অপেক্ষা করুন।",
+    };
+    showModalError($("#voteNameError"), copy[requested.error] || "ভোট নেওয়া যায়নি। একটু পর আবার চেষ্টা করুন।");
+  }
+
+  async function submitVoteName() {
+    if (identityFormBusy) return;
+    const idInput = $("#voteEmployeeId");
+    const nameInput = $("#voteNameInput");
+    const emailInput = $("#voteEmail");
     const err = $("#voteNameError");
-    const name = (input?.value || "").replace(/\s+/g, " ").trim();
-    if (!name) {
-      if (err) {
-        err.textContent = "নাম লিখুন—খালি রাখা যাবে না।";
-        err.classList.remove("hidden");
+    const employeeId = (idInput?.value || "").replace(/\s+/g, "").trim();
+    const name = (nameInput?.value || "").replace(/\s+/g, " ").trim();
+    const email = (emailInput?.value || "").trim();
+    showModalError($("#voteEmployeeIdError"), employeeId ? "" : "😜 **চুরামি বাদ দিয়ে সঠিক Employee ID প্রদান করুন!**");
+    showModalError($("#voteNameFieldError"), name ? "" : "ভাই, Database-এর সাথে তর্ক করে লাভ নেই—এই নামে কাউকে সে চেনে না! 😜");
+    showModalError(err, "");
+    setExistingOtpOffer(false);
+    if (!employeeId || !name || !email) {
+      showIdentityStatus("");
+      if (!email) showModalError(err, "ইমেইল লিখুন।");
+      (!employeeId ? idInput : !name ? nameInput : emailInput)?.focus();
+      return;
+    }
+
+    setIdentityFormBusy(true);
+    showIdentityStatus("OTP পাঠানো হচ্ছে…");
+    setVoteButtonsBusy(true);
+    let requested;
+    try {
+      requested = await Vote.requestOtp({
+        destinationId: identityDestinationId,
+        employeeId,
+        name,
+        email,
+      });
+    } catch {
+      setIdentityFormBusy(false);
+      setVoteButtonsBusy(false);
+      showIdentityStatus("");
+      showModalError(err, "নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।");
+      return;
+    }
+    setIdentityFormBusy(false);
+    setVoteButtonsBusy(false);
+
+    if (!requested || !requested.ok) {
+      showIdentityStatus("");
+      applyIdentityRequestError(requested || { error: "network" });
+      return;
+    }
+    if (requested.existing) {
+      pendingOtp = { ...readIdentityFields(), destinationId: identityDestinationId, expired: false };
+      showIdentityStatus("আগের কোড এখনও বাকি আছে। নতুন কোড পাঠানো হয়নি।");
+      setExistingOtpOffer(true);
+      return;
+    }
+    showIdentityStatus("");
+    pendingOtp = { ...readIdentityFields(), destinationId: identityDestinationId, expired: false };
+    closeVoteNameModal({ ...readIdentityFields(), existing: false });
+  }
+
+  function continueWithExistingOtp() {
+    if (identityFormBusy) return;
+    const fields = readIdentityFields();
+    if (!fields.employeeId || !fields.name || !fields.email) return;
+    closeVoteNameModal({ ...fields, existing: true });
+  }
+
+  function closeVoteOtpModal(result) {
+    const modal = $("#voteOtpModal");
+    const resolve = otpPromptResolve;
+    otpPromptResolve = null;
+    const finish = () => {
+      if (modal) {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex", "is-open");
       }
+      if (resolve) resolve(result);
+    };
+    if (!modal || modal.classList.contains("hidden")) {
+      finish();
+      return;
+    }
+    if (reduceMotion) {
+      finish();
+      return;
+    }
+    modal.classList.remove("is-open");
+    window.setTimeout(finish, 220);
+  }
+
+  function setOtpFormBusy(busy) {
+    otpFormBusy = busy;
+    const confirm = $("#voteOtpConfirm");
+    const input = $("#voteOtpInput");
+    const cancel = $("#voteOtpCancel");
+    if (input) input.disabled = busy;
+    if (cancel) cancel.disabled = busy;
+    if (confirm) {
+      confirm.disabled = busy;
+      confirm.textContent = busy ? "যাচাই হচ্ছে…" : "ভোট নিশ্চিত করুন";
+      confirm.setAttribute("aria-busy", busy ? "true" : "false");
+    }
+  }
+
+  function promptOtp(opts) {
+    const modal = $("#voteOtpModal");
+    const input = $("#voteOtpInput");
+    const err = $("#voteOtpError");
+    const hint = $("#voteOtpHint");
+    if (!modal || !input) return Promise.resolve(null);
+    otpEmployeeId = (opts && opts.employeeId) || "";
+    setOtpFormBusy(false);
+    if (!(opts && opts.keepValue)) input.value = "";
+    if (hint) {
+      hint.textContent = opts && opts.existing
+        ? "আগের কোড এখনও বাকি আছে। ইমেইলে পাঠানো ৬ সংখ্যাটি লিখুন।"
+        : "আপনার ইমেইলে পাঠানো ৬ সংখ্যার কোডটি লিখুন।";
+    }
+    showModalError(err, opts && opts.error);
+    if (otpPromptResolve) {
+      const prev = otpPromptResolve;
+      otpPromptResolve = null;
+      prev(null);
+    }
+    return new Promise((resolve) => {
+      otpPromptResolve = resolve;
+      openModalEl(modal, input);
+    });
+  }
+
+  async function submitVoteOtp() {
+    if (otpFormBusy) return;
+    const input = $("#voteOtpInput");
+    const err = $("#voteOtpError");
+    const otp = (input?.value || "").replace(/\s+/g, "");
+    if (!/^\d{6}$/.test(otp)) {
+      showModalError(err, "৬ সংখ্যার কোড লিখুন।");
       input?.focus();
       return;
     }
-    closeVoteNameModal(name.slice(0, 60));
+    setOtpFormBusy(true);
+    setVoteButtonsBusy(true);
+    let result;
+    try {
+      result = await Vote.verifyOtp({ employeeId: otpEmployeeId, otp });
+    } catch {
+      setOtpFormBusy(false);
+      setVoteButtonsBusy(false);
+      showModalError(err, "নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।");
+      return;
+    }
+    setVoteButtonsBusy(false);
+    if (!result || !result.ok) {
+      setOtpFormBusy(false);
+      const copy = {
+        otp_invalid: "কোড মিলছে না। আবার চেষ্টা করুন।",
+        otp_expired: "কোডের সময় শেষ। আবার কোড পাঠান।",
+        otp_used: "এই কোড আগেই ব্যবহার হয়েছে।",
+        otp_attempts: "অনেকবার ভুল কোড। আবার কোড পাঠান।",
+        otp_missing: "কোড পাওয়া যায়নি। আবার কোড পাঠান।",
+        already_voted: "আপনি ইতিমধ্যে ভোট দিয়েছেন। আর বদলানো যায় না।",
+        network: "নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।",
+      };
+      showModalError(err, (result && result.warning) || copy[result && result.error] || "কোড মিলছে না।");
+      if (result && (result.error === "otp_expired" || result.error === "otp_used" || result.error === "otp_attempts" || result.error === "already_voted")) {
+        if (pendingOtp) pendingOtp.expired = result.error !== "already_voted";
+        if (result.error === "already_voted") pendingOtp = null;
+      }
+      return;
+    }
+    setOtpFormBusy(false);
+    closeVoteOtpModal(result);
   }
 
   async function renderFinale(opts = {}) {
@@ -1324,7 +1574,8 @@
 
     // Load counts before painting cards so badges match the results panel.
     try {
-      state.voteResults = await Vote.getResults();
+      const fresh = await Vote.getResults();
+      if (fresh && fresh.publishedOk) state.voteResults = fresh;
     } catch {
       /* keep prior state.voteResults */
     }
@@ -1350,7 +1601,15 @@
       if (changing) voteBtnLabel = votedId === d.id ? "এখানে রাখুন" : "এতে বদলান";
       else if (lockedOther) voteBtnLabel = "অন্য গন্তব্যে ভোট দিয়েছেন";
       else if (selected) voteBtnLabel = "ভোট দেওয়া হয়েছে ✓";
+      else if (pendingOtp && pendingOtp.destinationId === d.id && pendingOtp.expired) voteBtnLabel = "নতুন কোড পাঠান";
       else if (state.voteBusy) voteBtnLabel = "ভোট দিন";
+
+      const resumeHere = !!(pendingOtp && pendingOtp.destinationId === d.id && !locked);
+      const resumeControls = resumeHere && !pendingOtp.expired
+        ? `<button type="button" class="btn-ghost focus-ring rounded-full px-4 py-2 text-sm cursor-pointer font-medium" data-resume-otp="${d.id}">কোড দিন</button>`
+        : resumeHere
+          ? `<p class="w-full text-sm text-rose-300">কোডের সময় শেষ। নতুন কোড পাঠাতে নিচের বোতাম চাপুন।</p>`
+          : "";
 
       const pass =
         locked && selected
@@ -1386,6 +1645,7 @@
               ${voteBtnLabel}
             </button>`
             }
+            ${resumeControls}
           </div>
           ${pass}
         </div>
@@ -1397,6 +1657,9 @@
     bindRouteLighting(wrap);
     $$("[data-vote]").forEach((btn) => {
       btn.addEventListener("click", () => handleVote(btn.dataset.vote, btn));
+    });
+    $$("[data-resume-otp]").forEach((btn) => {
+      btn.addEventListener("click", () => resumeExistingOtp(btn.dataset.resumeOtp));
     });
     if (window.lucide) lucide.createIcons();
     await refreshFinaleVoteUI(opts.ui || {});
@@ -1625,6 +1888,61 @@
     });
   }
 
+  async function resumeExistingOtp(destinationId) {
+    if (!Vote || state.voteBusy || otpFormBusy) return;
+    if (!pendingOtp || pendingOtp.destinationId !== destinationId) return;
+
+    setVoteButtonsBusy(true);
+    let status;
+    try {
+      status = await Vote.otpStatus({ employeeId: pendingOtp.employeeId });
+    } catch {
+      setVoteButtonsBusy(false);
+      setVoteStatus(
+        "error",
+        `<p class="vote-status__title">কোড খোলা যায়নি</p>
+         <p class="vote-status__body">নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।</p>`
+      );
+      return;
+    }
+    setVoteButtonsBusy(false);
+
+    if (!status || status.error === "network" || status.error === "busy") {
+      setVoteStatus(
+        "error",
+        `<p class="vote-status__title">কোড খোলা যায়নি</p>
+         <p class="vote-status__body">নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।</p>`
+      );
+      return;
+    }
+    if (status.error === "already_voted") {
+      pendingOtp = null;
+      setVoteStatus(
+        "info",
+        `<p class="vote-status__title">ভোট লক করা আছে</p>
+         <p class="vote-status__body">আপনি ইতিমধ্যে ভোট দিয়েছেন। আর বদলানো যায় না।</p>`
+      );
+      await renderFinale({ ui: { keepStatus: true } });
+      return;
+    }
+    if (status.ok && status.status === "active") {
+      const result = await promptOtp({ existing: true, employeeId: pendingOtp.employeeId });
+      if (!result) {
+        await renderFinale();
+        return;
+      }
+      pendingOtp = null;
+      state.voteChanging = false;
+      state.voteResults = result.results;
+      await renderFinale({ ui: { justVoted: true } });
+      $("#voteResults")?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
+      return;
+    }
+
+    pendingOtp.expired = true;
+    await renderFinale();
+  }
+
   async function handleVote(destinationId, btn) {
     if (!Vote || state.voteBusy) return;
 
@@ -1653,127 +1971,23 @@
       return;
     }
 
-    let voterName = null;
-    let nameWarn = "";
-
-    while (true) {
-    if (!changing) {
-      voterName = await promptVoterName(destinationId, {
-        value: voterName || "",
-        error: nameWarn,
-      });
-      if (!voterName) return;
-      nameWarn = "";
-    }
-
-    setVoteButtonsBusy(true);
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = "ভোট দিন";
-    }
-    $$("[data-vote]").forEach((b) => {
-      b.disabled = true;
-    });
-
-    try {
-      const result = changing
-        ? await Vote.changeVote(destinationId)
-        : await Vote.castVote(destinationId, voterName);
-
-      if (!result.ok) {
-        if (result.error === "name_taken") {
-          const warned = result.name || voterName || "";
-          nameWarn = `মাসুদ তুমি কি ভাল হবা না?`;
-          voterName = warned;
-          continue;
-        } else if (result.error === "already" || result.error === "locked") {
-          setVoteStatus(
-            "info",
-            canChangeVote()
-              ? `<p class="vote-status__title">আপনি ইতিমধ্যে ভোট দিয়েছেন</p>
-             <p class="vote-status__body">ভোট বদলাতে «ভোট বদলান» চাপুন।</p>`
-              : `<p class="vote-status__title">আপনি ইতিমধ্যে ভোট দিয়েছেন</p>
-             <p class="vote-status__body">ভোট লক করা আছে—আর বদলানো যায় না।</p>`
-          );
-        } else if (result.error === "name_required") {
-          setVoteStatus(
-            "error",
-            `<p class="vote-status__title">নাম প্রয়োজন</p>
-             <p class="vote-status__body">ভোট দেওয়ার আগে আপনার নাম লিখুন।</p>`
-          );
-        } else if (result.error === "firebase_not_configured") {
-          setVoteStatus(
-            "error",
-            `<p class="vote-status__title">ভোট নেওয়া যায়নি</p>
-             <p class="vote-status__body">সিস্টেম এখনো প্রস্তুত নয়। একটু পর আবার চেষ্টা করুন।</p>`
-          );
-        } else if (result.error === "auth_required") {
-          setVoteStatus(
-            "error",
-            `<p class="vote-status__title">লগইন দরকার</p>
-             <p class="vote-status__body">Firebase Authentication → Anonymous চালু আছে কি নিশ্চিত করুন, তারপর পেজ রিফ্রেশ করুন।</p>`
-          );
-        } else if (result.error === "permission" || result.error === "permission-denied") {
-          setVoteStatus(
-            "error",
-            `<p class="vote-status__title">ভোট সেভ হয়নি</p>
-             <p class="vote-status__body">Firestore rules Publish করুন (<code class="vote-code">votes</code> + <code class="vote-code">publicTallies</code>)।</p>`
-          );
-        } else if (result.error === "crypto_unavailable") {
-          setVoteStatus(
-            "error",
-            `<p class="vote-status__title">ভোট নেওয়া যায়নি</p>
-             <p class="vote-status__body">ব্রাউজারে নিরাপদ হ্যাশ সাপোর্ট নেই। HTTPS বা অন্য ব্রাউজার ব্যবহার করুন।</p>`
-          );
-        } else if (result.error === "storage" || result.error === "network") {
-          setVoteStatus(
-            "error",
-            `<p class="vote-status__title">সেভ করা যায়নি</p>
-             <p class="vote-status__body">নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।</p>`
-          );
-        } else if (result.error === "invalid") {
-          setVoteStatus(
-            "error",
-            `<p class="vote-status__title">অবৈধ গন্তব্য</p>
-             <p class="vote-status__body">এই পছন্দ গ্রহণযোগ্য নয়।</p>`
-          );
-        } else if (result.error === "busy") {
-          setVoteStatus(
-            "info",
-            `<p class="vote-status__title">একটু অপেক্ষা করুন</p>
-             <p class="vote-status__body">আগের অনুরোধ চলছে।</p>`
-          );
-        } else {
-          setVoteStatus(
-            "error",
-            `<p class="vote-status__title">ভোট নেওয়া যায়নি</p>
-             <p class="vote-status__body">একটু পর আবার চেষ্টা করুন${result.error ? ` (${result.error})` : ""}।</p>`
-          );
-        }
-        return;
-      }
-
-      state.voteChanging = false;
-      state.voteResults = result.results;
-      await renderFinale({
-        ui: {
-          justVoted: !changing && !result.unchanged,
-          justChanged: changing && !result.unchanged,
-        },
-      });
-      $("#voteResults")?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
+    const identity = await promptVoterIdentity(destinationId, {});
+    if (!identity) {
+      if (pendingOtp) await renderFinale();
       return;
-    } catch {
-      setVoteStatus(
-        "error",
-        `<p class="vote-status__title">ভোট নেওয়া যায়নি</p>
-         <p class="vote-status__body">নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।</p>`
-      );
+    }
+
+    const result = await promptOtp({ existing: identity.existing, employeeId: identity.employeeId });
+    if (!result) {
+      await renderFinale();
       return;
-    } finally {
-      setVoteButtonsBusy(false);
     }
-    }
+
+    pendingOtp = null;
+    state.voteChanging = false;
+    state.voteResults = result.results;
+    await renderFinale({ ui: { justVoted: true } });
+    $("#voteResults")?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
   }
 
   function refreshReveals() {
@@ -1818,14 +2032,46 @@
       if (e.target.id === "attrModal") closeModal();
     });
     $("#voteNameConfirm")?.addEventListener("click", submitVoteName);
-    $("#voteNameCancel")?.addEventListener("click", () => closeVoteNameModal(null));
+    $("#voteUseExistingOtp")?.addEventListener("click", continueWithExistingOtp);
+    $("#voteNameCancel")?.addEventListener("click", () => {
+      if (identityFormBusy) return;
+      closeVoteNameModal(null);
+    });
     $("#voteNameModal")?.addEventListener("click", (e) => {
+      if (identityFormBusy) return;
       if (e.target.id === "voteNameModal") closeVoteNameModal(null);
     });
     $("#voteNameInput")?.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
         submitVoteName();
+      }
+    });
+    $("#voteEmployeeId")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        submitVoteName();
+      }
+    });
+    $("#voteEmail")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        submitVoteName();
+      }
+    });
+    $("#voteOtpConfirm")?.addEventListener("click", submitVoteOtp);
+    $("#voteOtpCancel")?.addEventListener("click", () => {
+      if (otpFormBusy) return;
+      closeVoteOtpModal(null);
+    });
+    $("#voteOtpModal")?.addEventListener("click", (e) => {
+      if (otpFormBusy) return;
+      if (e.target.id === "voteOtpModal") closeVoteOtpModal(null);
+    });
+    $("#voteOtpInput")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        submitVoteOtp();
       }
     });
     $("#undoVoteConfirm")?.addEventListener("click", () => confirmUndoVote());
@@ -1837,7 +2083,8 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         closeModal();
-        closeVoteNameModal(null);
+        if (!identityFormBusy) closeVoteNameModal(null);
+        if (!otpFormBusy) closeVoteOtpModal(null);
         closeUndoConfirm();
       }
       if (e.altKey) return;
