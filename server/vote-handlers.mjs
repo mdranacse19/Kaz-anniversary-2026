@@ -14,6 +14,7 @@ import {
   buildOtpRecord,
   canonicalEmployeeId,
   commitVerifiedVote,
+  emailClaimPath,
   generateOtp,
   otpAvailability,
   playfulWarning,
@@ -133,13 +134,18 @@ function runTransaction(db) {
         async set(path, data) {
           tx.set(db.doc(path), data);
         },
+        async queryOne(collection, field, value) {
+          const snap = await tx.get(db.collection(collection).where(field, "==", value).limit(1));
+          if (snap.empty) return { exists: false, data: null };
+          return { exists: true, data: snap.docs[0].data() };
+        },
       };
       return fn(api);
     });
 }
 
 function mailConfigured() {
-  return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && process.env.MAIL_FROM);
+  return !!(process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN && process.env.MAIL_FROM);
 }
 
 function otpMailText(otp, destinationId) {
@@ -273,23 +279,26 @@ function otpMailHtml(otp, destinationId) {
 }
 
 async function sendOtpMail(to, otp, destinationId) {
-  const { default: nodemailer } = await import("nodemailer");
-  const transport = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: Number(process.env.SMTP_PORT || 587) === 465,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-  await transport.sendMail({
+  const base = (process.env.MAILGUN_API_BASE || "https://api.mailgun.net").replace(/\/$/, "");
+  const domain = process.env.MAILGUN_DOMAIN;
+  const body = new URLSearchParams({
     from: process.env.MAIL_FROM,
     to,
     subject: "KAZ Anniversary Tour 2026 — ভোটের কোড",
     text: otpMailText(otp, destinationId),
     html: otpMailHtml(otp, destinationId),
   });
+  const response = await fetch(`${base}/v3/${encodeURIComponent(domain)}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${Buffer.from(`api:${process.env.MAILGUN_API_KEY}`).toString("base64")}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+  if (!response.ok) {
+    throw new Error(`mailgun ${response.status}`);
+  }
 }
 
 async function handleRequest(body) {
@@ -313,6 +322,11 @@ async function handleRequest(body) {
         warning: playfulWarning(checked.displayToken),
       },
     };
+  }
+  const mailSnap = await db.doc(emailClaimPath(checked.email)).get();
+  const legacyMail = await db.collection("votes").where("email", "==", checked.email).limit(1).get();
+  if (mailSnap.exists || !legacyMail.empty) {
+    return { status: 409, body: { ok: false, error: "email_taken" } };
   }
   const nowMs = Date.now();
   const otpRef = db.doc(`voteOtps/${checked.employeeId}`);

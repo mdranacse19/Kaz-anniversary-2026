@@ -1,6 +1,6 @@
 /**
  * Employee vote rules shared by the API and tests.
- * Uniqueness is the Firestore document votes/{employeeId}, created once inside a transaction.
+ * Uniqueness is votes/{employeeId} plus voteEmails/{emailHash}, both created once inside a transaction.
  */
 import { createHash, randomInt } from "node:crypto";
 
@@ -49,8 +49,14 @@ export function playfulWarning(token) {
 }
 
 export function validEmail(raw) {
-  const email = String(raw || "").trim();
+  const email = String(raw || "").trim().toLowerCase();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
+}
+
+/** Firestore id for one stored address. Case does not make a second address. */
+export function emailClaimPath(email) {
+  const mail = validEmail(email);
+  return mail ? `voteEmails/${sha256(mail)}` : "";
 }
 
 export function sha256(text) {
@@ -210,6 +216,10 @@ export async function commitVerifiedVote(runTransaction, input) {
     const otpSnap = await tx.get(`voteOtps/${employeeId}`);
     const tallySnap = await tx.get("publicTallies/live");
     const challenge = otpSnap.exists ? otpSnap.data : null;
+    const mail = validEmail(challenge && challenge.email);
+    const mailPath = emailClaimPath(mail);
+    const mailSnap = mailPath ? await tx.get(mailPath) : { exists: false };
+    const legacySnap = mail ? await tx.queryOne("votes", "email", mail) : { exists: false };
 
     if (voteSnap.exists) {
       return {
@@ -225,6 +235,8 @@ export async function commitVerifiedVote(runTransaction, input) {
       return { ok: false, error: gate.error };
     }
 
+    if (mailSnap.exists || legacySnap.exists) return { ok: false, error: "email_taken" };
+
     const stamp = nowIso(new Date(nowMs));
     const record = {
       destination: challenge.destinationId,
@@ -234,10 +246,11 @@ export async function commitVerifiedVote(runTransaction, input) {
       voted_at: stamp,
       updated_at: stamp,
       employee_id: employeeId,
-      email: challenge.email,
+      email: validEmail(challenge.email),
       ip,
     };
     await tx.create(`votes/${employeeId}`, record);
+    await tx.create(mailPath, { email: record.email, employeeId });
     await tx.set(`voteOtps/${employeeId}`, { ...challenge, used: true });
 
     const counts = emptyCounts();
@@ -286,6 +299,15 @@ function memoryTx(docs) {
     },
     async set(path, data) {
       docs.set(path, { ...data });
+    },
+    async queryOne(collection, field, value) {
+      const prefix = `${collection}/`;
+      for (const [path, data] of docs) {
+        if (path.startsWith(prefix) && data && data[field] === value) {
+          return { exists: true, data: { ...data } };
+        }
+      }
+      return { exists: false, data: null };
     },
   };
 }

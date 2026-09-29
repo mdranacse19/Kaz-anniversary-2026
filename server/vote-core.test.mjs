@@ -228,3 +228,71 @@ test("two simultaneous verifies create one vote and one tally", async () => {
   assert.equal(db.docs.get("voteOtps/KS010").used, true);
   assert.equal(hashOtp("654321"), db.docs.get("voteOtps/KS010").otpHash);
 });
+
+test("a stored email cannot be saved on another vote", async () => {
+  const db = createMemoryDb();
+  const seeded = seedOtp(db, "654321");
+  const first = await commitVerifiedVote(db.runTransaction.bind(db), {
+    employeeId: seeded.employeeId,
+    otp: seeded.otp,
+    ip: "203.0.113.1",
+    nowMs: seeded.nowMs + 10,
+  });
+  assert.equal(first.ok, true);
+
+  const other = assessRoster({
+    employeeId: "KS004",
+    name: "shariful",
+    email: "Masud@Example.com",
+    destinationId: "sundarbans",
+    roster,
+  });
+  assert.equal(other.email, "masud@example.com");
+  const record = buildOtpRecord({
+    employee: other.employee,
+    email: other.email,
+    destinationId: other.destinationId,
+    otp: "111111",
+    nowMs: seeded.nowMs,
+    displayToken: other.displayToken,
+  });
+  db.docs.set(`voteOtps/${other.employeeId}`, record);
+  const second = await commitVerifiedVote(db.runTransaction.bind(db), {
+    employeeId: other.employeeId,
+    otp: "111111",
+    ip: "203.0.113.2",
+    nowMs: seeded.nowMs + 20,
+  });
+  assert.equal(second.ok, false);
+  assert.equal(second.error, "email_taken");
+  assert.equal(db.docs.has("votes/KS004"), false);
+  assert.equal(db.docs.get("publicTallies/live").totalVotes, 1);
+
+  const fresh = assessRoster({
+    employeeId: "KS011",
+    name: "anwarul",
+    email: "anwarul@example.com",
+    destinationId: "sylhet",
+    roster,
+  });
+  db.docs.set(
+    `voteOtps/${fresh.employeeId}`,
+    buildOtpRecord({
+      employee: fresh.employee,
+      email: fresh.email,
+      destinationId: fresh.destinationId,
+      otp: "222222",
+      nowMs: seeded.nowMs,
+      displayToken: fresh.displayToken,
+    })
+  );
+  const third = await commitVerifiedVote(db.runTransaction.bind(db), {
+    employeeId: fresh.employeeId,
+    otp: "222222",
+    ip: "203.0.113.3",
+    nowMs: seeded.nowMs + 30,
+  });
+  assert.equal(third.ok, true);
+  assert.equal(db.docs.get("votes/KS011").email, "anwarul@example.com");
+  assert.equal(db.docs.get("publicTallies/live").totalVotes, 2);
+});

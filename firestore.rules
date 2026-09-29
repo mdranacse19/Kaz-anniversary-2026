@@ -9,6 +9,9 @@ service cloud.firestore {
     match /voteOtps/{employeeId} {
       allow read, write: if false;
     }
+    match /voteEmails/{emailHash} {
+      allow read, write: if false;
+    }
 
     // Public live results: counts only.
     match /publicTallies/{docId} {
