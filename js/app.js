@@ -1244,6 +1244,7 @@
   let identityFormBusy = false;
   let otpEmployeeId = "";
   let otpFormBusy = false;
+  let otpResendTimer = 0;
   let pendingOtp = null;
 
   function closeVoteNameModal(result) {
@@ -1442,14 +1443,28 @@
       return;
     }
     if (requested.existing) {
-      pendingOtp = { ...readIdentityFields(), destinationId: identityDestinationId, expired: false };
+      rememberPendingOtp(requested);
       showIdentityStatus("আগের কোড এখনও বাকি আছে। নতুন কোড পাঠানো হয়নি।");
       setExistingOtpOffer(true);
       return;
     }
     showIdentityStatus("");
-    pendingOtp = { ...readIdentityFields(), destinationId: identityDestinationId, expired: false };
+    rememberPendingOtp(requested);
     closeVoteNameModal({ ...readIdentityFields(), existing: false });
+  }
+
+  function resendAtFrom(response) {
+    const seconds = Number(response && (response.resendAfter ?? response.retryAfter)) || 0;
+    return Date.now() + Math.max(0, seconds) * 1000;
+  }
+
+  function rememberPendingOtp(requested) {
+    pendingOtp = {
+      ...readIdentityFields(),
+      destinationId: identityDestinationId,
+      expired: false,
+      resendAt: resendAtFrom(requested),
+    };
   }
 
   function continueWithExistingOtp() {
@@ -1463,6 +1478,8 @@
     const modal = $("#voteOtpModal");
     const resolve = otpPromptResolve;
     otpPromptResolve = null;
+    window.clearInterval(otpResendTimer);
+    otpResendTimer = 0;
     const finish = () => {
       if (modal) {
         modal.classList.add("hidden");
@@ -1482,7 +1499,7 @@
     window.setTimeout(finish, 220);
   }
 
-  function setOtpFormBusy(busy) {
+  function setOtpFormBusy(busy, busyLabel) {
     otpFormBusy = busy;
     const confirm = $("#voteOtpConfirm");
     const input = $("#voteOtpInput");
@@ -1491,9 +1508,79 @@
     if (cancel) cancel.disabled = busy;
     if (confirm) {
       confirm.disabled = busy;
-      confirm.textContent = busy ? "যাচাই হচ্ছে…" : "ভোট নিশ্চিত করুন";
+      confirm.textContent = busy ? busyLabel || "যাচাই হচ্ছে…" : "ভোট নিশ্চিত করুন";
       confirm.setAttribute("aria-busy", busy ? "true" : "false");
     }
+    syncOtpResend();
+  }
+
+  function showOtpStatus(message) {
+    const status = $("#voteOtpStatus");
+    if (!status) return;
+    status.textContent = message || "";
+    status.classList.toggle("hidden", !message);
+  }
+
+  /* Resend button: counts down the server's cooldown, then unlocks. */
+  function syncOtpResend() {
+    const btn = $("#voteOtpResend");
+    if (!btn) return;
+    const left = pendingOtp ? Math.max(0, Math.ceil((pendingOtp.resendAt - Date.now()) / 1000)) : 0;
+    btn.disabled = otpFormBusy || !pendingOtp || left > 0;
+    btn.textContent = left > 0 ? `আবার কোড পাঠান (${bn(left)} সে.)` : "আবার কোড পাঠান";
+    if (left <= 0) {
+      window.clearInterval(otpResendTimer);
+      otpResendTimer = 0;
+    }
+  }
+
+  function startOtpResendWait() {
+    window.clearInterval(otpResendTimer);
+    otpResendTimer = window.setInterval(syncOtpResend, 1000);
+    syncOtpResend();
+  }
+
+  async function resendOtp() {
+    if (otpFormBusy || !pendingOtp) return;
+    const input = $("#voteOtpInput");
+    const err = $("#voteOtpError");
+    showModalError(err, "");
+    showOtpStatus("নতুন কোড পাঠানো হচ্ছে…");
+    setOtpFormBusy(true, "কোড পাঠানো হচ্ছে…");
+    let requested;
+    try {
+      requested = await Vote.requestOtp({ ...pendingOtp, resend: true });
+    } catch {
+      requested = { ok: false, error: "network" };
+    }
+    setOtpFormBusy(false);
+    if (!pendingOtp) return;
+
+    if (requested && requested.ok) {
+      pendingOtp.expired = false;
+      pendingOtp.resendAt = resendAtFrom(requested);
+      if (input) input.value = "";
+      showOtpStatus(
+        requested.existing
+          ? "আগের কোড এখনও বাকি আছে। ইমেইল দেখুন।"
+          : "নতুন কোড পাঠানো হয়েছে। আগের কোড আর কাজ করবে না।"
+      );
+      input?.focus();
+    } else {
+      showOtpStatus("");
+      if (requested && requested.retryAfter) pendingOtp.resendAt = resendAtFrom(requested);
+      if (requested && requested.error === "already_voted") pendingOtp = null;
+      const copy = {
+        resend_wait: "একটু পরে আবার কোড পাঠাতে পারবেন।",
+        resend_limit: "অনেকবার কোড পাঠানো হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।",
+        already_voted: "আপনি ইতিমধ্যে ভোট দিয়েছেন। আর বদলানো যায় না।",
+        mail_failed: "কোড পাঠানো যায়নি। একটু পর আবার চেষ্টা করুন।",
+        mail_not_configured: "মেইল সার্ভার এখনো সেটআপ হয়নি।",
+        busy: "একটু অপেক্ষা করুন।",
+      };
+      showModalError(err, copy[requested && requested.error] || "নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।");
+    }
+    startOtpResendWait();
   }
 
   function promptOtp(opts) {
@@ -1511,6 +1598,8 @@
         : "আপনার ইমেইলে পাঠানো ৬ সংখ্যার কোডটি লিখুন।";
     }
     showModalError(err, opts && opts.error);
+    showOtpStatus("");
+    startOtpResendWait();
     if (otpPromptResolve) {
       const prev = otpPromptResolve;
       otpPromptResolve = null;
@@ -1557,8 +1646,13 @@
       };
       showModalError(err, (result && result.warning) || copy[result && result.error] || "কোড মিলছে না।");
       if (result && (result.error === "otp_expired" || result.error === "otp_used" || result.error === "otp_attempts" || result.error === "already_voted")) {
-        if (pendingOtp) pendingOtp.expired = result.error !== "already_voted";
+        if (pendingOtp) {
+          pendingOtp.expired = result.error !== "already_voted";
+          // A dead code has no cooldown left to wait for.
+          pendingOtp.resendAt = 0;
+        }
         if (result.error === "already_voted") pendingOtp = null;
+        syncOtpResend();
       }
       return;
     }
@@ -2060,6 +2154,7 @@
       }
     });
     $("#voteOtpConfirm")?.addEventListener("click", submitVoteOtp);
+    $("#voteOtpResend")?.addEventListener("click", resendOtp);
     $("#voteOtpCancel")?.addEventListener("click", () => {
       if (otpFormBusy) return;
       closeVoteOtpModal(null);
@@ -2128,7 +2223,9 @@
     if (document.readyState === "complete") show(7000);
     else window.addEventListener("load", () => show(7000), { once: true });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Tab" || e.key === "Alt" || e.key.startsWith("Arrow")) show(4000);
+      // Autofill and password managers fire keydown without a key.
+      const key = e.key || "";
+      if (key === "Tab" || key === "Alt" || key.startsWith("Arrow")) show(4000);
     });
   }
 

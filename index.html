@@ -308,9 +308,14 @@
         />
       </label>
       <p id="voteOtpError" class="text-sm text-rose-300 hidden" role="alert"></p>
+      <p id="voteOtpStatus" class="text-sm text-amber-200/90 hidden" role="status"></p>
       <div class="flex flex-wrap gap-3 pt-1">
         <button id="voteOtpConfirm" type="button" class="btn-primary focus-ring rounded-full px-5 py-2.5 cursor-pointer font-medium">ভোট নিশ্চিত করুন</button>
         <button id="voteOtpCancel" type="button" class="btn-ghost focus-ring rounded-full px-5 py-2.5 cursor-pointer">বাতিল</button>
+      </div>
+      <div class="border-t border-[var(--line)] pt-3 space-y-2">
+        <p class="text-[var(--muted)] text-xs leading-relaxed">মেইল আসতে এক-দুই মিনিট লাগতে পারে। স্প্যাম ফোল্ডারও দেখুন।</p>
+        <button id="voteOtpResend" type="button" class="btn-ghost focus-ring rounded-full px-4 py-2 text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">আবার কোড পাঠান</button>
       </div>
     </div>
   </div>

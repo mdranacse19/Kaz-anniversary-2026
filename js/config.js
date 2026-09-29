@@ -2,6 +2,6 @@
 window.SITE_CONFIG = {
   /** When true, voters can change destination or undo. When false, first vote is final. */
   allowChangeVote: false,
-  /** Vote API origin. No secrets. */
-  voteApiUrl: "http://127.0.0.1:8787",
+  /** Vote API origin. No secrets. Empty = same origin when deployed, local vote-api on localhost. */
+  voteApiUrl: "",
 };

@@ -13,7 +13,20 @@ python3 -m http.server 8765
 
 → http://127.0.0.1:8765  
 
-বা সরাসরি Vercel-এ ডিপ্লয় করুন।
+ভোটের OTP API (লোকাল, `.env` লাগে):
+
+```bash
+npm run vote-api
+```
+
+→ http://127.0.0.1:8787 (localhost-এ সাইট নিজে থেকেই এটি ব্যবহার করে)
+
+## Vercel ডিপ্লয়
+
+- স্ট্যাটিক সাইট: `npm run build` শুধু `index.html`, `assets/`, `css/`, `js/` কপি করে `dist/`-এ। `data/`, `server/`, `scripts/` পাবলিক হয় না।
+- API: `api/vote/*.mjs` (Vercel Functions) → `server/vote-handlers.mjs`। সাইট same-origin `/api/vote/...` কল করে।
+- Vercel → Project → Settings → Environment Variables-এ `.env.example`-এর সব কী দিন (`PORT` বাদে)। `FIREBASE_PRIVATE_KEY` এক লাইনে, `\n` সহ।
+- নতুন টপ-লেভেল স্ট্যাটিক ফোল্ডার যোগ করলে `package.json`-এর `build` স্ক্রিপ্টে যোগ করুন।
 
 ## Firebase সেটআপ (একবার)
 
@@ -82,4 +95,4 @@ node scripts/rebuild-public-tallies-rest.mjs
 ## নোট
 
 - ভোট Firebase Firestore-এ সংরক্ষিত হয়  
-- Vercel স্ট্যাটিক হোস্টিং-এ সরাসরি কাজ করে  
+- Vercel-এ স্ট্যাটিক সাইট + Functions হিসেবে চলে ("Vercel ডিপ্লয়" দেখুন)  

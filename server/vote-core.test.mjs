@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   OTP_MAX_ATTEMPTS,
+  OTP_MAX_SENDS,
+  OTP_RESEND_WAIT_MS,
   OTP_TTL_MS,
   assessRoster,
   buildOtpRecord,
@@ -12,6 +14,7 @@ import {
   hashOtp,
   namesMatch,
   playfulWarning,
+  resendGate,
   reusableOtp,
 } from "./vote-core.mjs";
 
@@ -76,6 +79,48 @@ test("a live unused OTP is reused and an expired one is not", () => {
   assert.equal(reusableOtp({ ...live, used: true }, nowMs), false);
   assert.equal(reusableOtp({ ...live, attempts: OTP_MAX_ATTEMPTS }, nowMs), false);
   assert.equal(reusableOtp(null, nowMs), false);
+});
+
+test("resend waits out the cooldown and stops at the send cap", () => {
+  const nowMs = 1_700_000_000_000;
+  const record = buildOtpRecord({
+    employee: masud,
+    email: "a@b.com",
+    destinationId: "coxstmartin",
+    otp: "123456",
+    nowMs,
+  });
+  assert.equal(record.sends, 1);
+  assert.equal(record.sentAt, nowMs);
+
+  assert.deepEqual(resendGate(record, nowMs + 1000), { ok: false, error: "resend_wait", retryAfter: 59 });
+  assert.deepEqual(resendGate(record, nowMs + OTP_RESEND_WAIT_MS), { ok: true, sends: 1 });
+
+  const second = buildOtpRecord({
+    employee: masud,
+    email: "a@b.com",
+    destinationId: "coxstmartin",
+    otp: "654321",
+    nowMs,
+    sends: 1,
+  });
+  assert.equal(second.sends, 2);
+
+  const capped = { ...record, sends: OTP_MAX_SENDS };
+  const limit = resendGate(capped, nowMs + OTP_RESEND_WAIT_MS);
+  assert.equal(limit.ok, false);
+  assert.equal(limit.error, "resend_limit");
+  assert.equal(limit.retryAfter, (OTP_TTL_MS - OTP_RESEND_WAIT_MS) / 1000);
+
+  // Expired, used, or missing codes start a fresh count.
+  assert.deepEqual(resendGate(capped, nowMs + OTP_TTL_MS), { ok: true, sends: 0 });
+  assert.deepEqual(resendGate({ ...record, used: true }, nowMs), { ok: true, sends: 0 });
+  assert.deepEqual(resendGate(null, nowMs), { ok: true, sends: 0 });
+
+  // Records from before resend existed have no sentAt.
+  const { sentAt, sends, ...legacy } = record;
+  assert.equal(resendGate(legacy, nowMs + 1000).error, "resend_wait");
+  assert.deepEqual(resendGate(legacy, nowMs + OTP_RESEND_WAIT_MS), { ok: true, sends: 1 });
 });
 
 test("already-voted warning uses the roster token", () => {

@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/vote/*.mjs": {
+      "includeFiles": "data/employees.json",
+      "maxDuration": 30
+    }
+  }
+}

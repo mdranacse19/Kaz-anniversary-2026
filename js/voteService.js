@@ -2,11 +2,13 @@
  *
  * Counts come from publicTallies/live. Casting goes through the vote API.
  * The browser never lists votes and never decides uniqueness.
+ * It remembers its own cast vote (localStorage) only to keep showing it after a reload.
  */
 (function (global) {
   const DEST_IDS = ["sundarbans", "sylhet", "sajekkaptai", "nepal", "bandarban", "coxstmartin"];
   const TALLIES = "publicTallies";
   const TALLY_DOC = "live";
+  const VOTE_KEY = "kaz2026.vote";
 
   let busy = false;
   let lastResults = null;
@@ -78,7 +80,10 @@
 
   function apiBase() {
     const configured = global.SITE_CONFIG && global.SITE_CONFIG.voteApiUrl;
-    return String(configured || "http://127.0.0.1:8787").replace(/\/$/, "");
+    if (configured) return String(configured).replace(/\/$/, "");
+    const host = global.location ? global.location.hostname : "";
+    const local = host === "127.0.0.1" || host === "localhost" || host === "";
+    return local ? "http://127.0.0.1:8787" : "";
   }
 
   function talliesRef(db) {
@@ -135,6 +140,48 @@
       employee_id: vote.employee_id || "",
       voted_at: vote.voted_at || null,
     };
+  }
+
+  function readStoredVote() {
+    try {
+      const vote = JSON.parse(localStorage.getItem(VOTE_KEY) || "null");
+      return vote && typeof vote === "object" ? vote : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function storeVote(vote) {
+    try {
+      if (!vote) {
+        localStorage.removeItem(VOTE_KEY);
+        return;
+      }
+      localStorage.setItem(
+        VOTE_KEY,
+        JSON.stringify({
+          destination: vote.destination,
+          employee_id: vote.employee_id,
+          voted_at: vote.voted_at,
+        })
+      );
+    } catch {
+      /* private mode */
+    }
+  }
+
+  /** The server still owns the vote. If it no longer has one for this id, drop the local mark. */
+  async function confirmStoredVote() {
+    const vote = sessionVote;
+    if (!vote || !vote.employee_id) return;
+    const data = await postJson("/api/vote/status", { employeeId: vote.employee_id });
+    if (!data || data.ok !== true || sessionVote !== vote) return;
+    sessionVote = null;
+    storeVote(null);
+    if (lastResults) {
+      lastResults = { ...lastResults, myVote: null, localVote: null };
+      notifyLive(lastResults);
+    }
   }
 
   async function fetchResults() {
@@ -237,6 +284,7 @@
         name: input.name,
         email: input.email,
         destinationId: input.destinationId,
+        resend: input.resend === true,
       });
     } finally {
       busy = false;
@@ -263,7 +311,10 @@
         employeeId: input && input.employeeId,
         otp: input && input.otp,
       });
-      if (data && data.ok && data.vote) rememberSession(data.vote);
+      if (data && data.ok && data.vote) {
+        rememberSession(data.vote);
+        storeVote(sessionVote);
+      }
       if (data && data.ok && data.counts) {
         lastResults = buildResults(data.counts, sessionVote, null);
         notifyLive(lastResults);
@@ -307,6 +358,8 @@
   }
 
   purgeLegacyVoteStorage();
+  rememberSession(readStoredVote());
+  confirmStoredVote();
 
   global.VoteService = {
     DEST_IDS,

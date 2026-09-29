@@ -7,6 +7,8 @@ import { createHash, randomInt } from "node:crypto";
 export const DEST_IDS = ["sundarbans", "sylhet", "sajekkaptai", "nepal", "bandarban", "coxstmartin"];
 export const OTP_TTL_MS = 10 * 60 * 1000;
 export const OTP_MAX_ATTEMPTS = 5;
+export const OTP_RESEND_WAIT_MS = 60 * 1000;
+export const OTP_MAX_SENDS = 5;
 
 export function canonicalEmployeeId(raw) {
   return String(raw || "")
@@ -119,7 +121,7 @@ export function assessRoster({ employeeId, name, email, destinationId, roster })
   };
 }
 
-export function buildOtpRecord({ employee, email, destinationId, otp, nowMs, displayToken }) {
+export function buildOtpRecord({ employee, email, destinationId, otp, nowMs, displayToken, sends }) {
   const rosterName = String(employee.name || "").replace(/\s+/g, " ").trim();
   const key = nameKey(rosterName);
   return {
@@ -133,6 +135,8 @@ export function buildOtpRecord({ employee, email, destinationId, otp, nowMs, dis
     expiresAt: nowMs + OTP_TTL_MS,
     attempts: 0,
     used: false,
+    sentAt: nowMs,
+    sends: (Number(sends) || 0) + 1,
   };
 }
 
@@ -147,6 +151,23 @@ export function otpAvailability(record, nowMs) {
 /** A code the employee can still type. Expired, used, or attempt-exhausted codes are not reused. */
 export function reusableOtp(record, nowMs) {
   return otpAvailability(record, nowMs) === "active";
+}
+
+/**
+ * May a fresh code replace this one? A live code must wait out the cooldown and stay under the send cap.
+ * Records written before resend existed carry no sentAt; their expiry dates them.
+ */
+export function resendGate(record, nowMs) {
+  if (!reusableOtp(record, nowMs)) return { ok: true, sends: 0 };
+  const sends = Number(record.sends) || 1;
+  if (sends >= OTP_MAX_SENDS) {
+    const retryAfter = Math.ceil((Number(record.expiresAt) - Number(nowMs)) / 1000);
+    return { ok: false, error: "resend_limit", retryAfter };
+  }
+  const sentAt = Number(record.sentAt) || Number(record.expiresAt) - OTP_TTL_MS;
+  const waitMs = sentAt + OTP_RESEND_WAIT_MS - Number(nowMs);
+  if (waitMs > 0) return { ok: false, error: "resend_wait", retryAfter: Math.ceil(waitMs / 1000) };
+  return { ok: true, sends };
 }
 
 function judgeOtp(challenge, otp, nowMs) {
