@@ -129,7 +129,7 @@ test("already-voted warning uses the roster token", () => {
   const checked = assessRoster({
     employeeId: "ks010",
     name: "masud",
-    email: "masud@example.com",
+    email: "masud@kaz-software.com",
     destinationId: "sundarbans",
     roster,
   });
@@ -141,7 +141,7 @@ function seedOtp(db, otp, extra = {}) {
   const checked = assessRoster({
     employeeId: "KS010",
     name: "masud",
-    email: "masud@example.com",
+    email: "masud@kaz-software.com",
     destinationId: "coxstmartin",
     roster,
   });
@@ -223,7 +223,7 @@ test("two simultaneous verifies create one vote and one tally", async () => {
   const oks = [a, b].filter((row) => row.ok);
   assert.equal(oks.length, 1);
   assert.equal(db.docs.has("votes/KS010"), true);
-  assert.equal(db.docs.get("votes/KS010").email, "masud@example.com");
+  assert.equal(db.docs.get("votes/KS010").email, "masud@kaz-software.com");
   assert.equal(db.docs.get("votes/KS010").employee_id, "KS010");
   assert.equal(db.docs.get("publicTallies/live").counts.coxstmartin, 1);
   assert.equal(db.docs.get("publicTallies/live").totalVotes, 1);
@@ -245,11 +245,11 @@ test("a stored email cannot be saved on another vote", async () => {
   const other = assessRoster({
     employeeId: "KS004",
     name: "shariful",
-    email: "Masud@Example.com",
+    email: "Masud@Kaz-Software.com",
     destinationId: "sundarbans",
     roster,
   });
-  assert.equal(other.email, "masud@example.com");
+  assert.equal(other.email, "masud@kaz-software.com");
   const record = buildOtpRecord({
     employee: other.employee,
     email: other.email,
@@ -273,7 +273,7 @@ test("a stored email cannot be saved on another vote", async () => {
   const fresh = assessRoster({
     employeeId: "KS011",
     name: "anwarul",
-    email: "anwarul@example.com",
+    email: "anwarul@kaz.com.bd",
     destinationId: "sylhet",
     roster,
   });
@@ -295,7 +295,7 @@ test("a stored email cannot be saved on another vote", async () => {
     nowMs: seeded.nowMs + 30,
   });
   assert.equal(third.ok, true);
-  assert.equal(db.docs.get("votes/KS011").email, "anwarul@example.com");
+  assert.equal(db.docs.get("votes/KS011").email, "anwarul@kaz.com.bd");
   assert.equal(db.docs.get("publicTallies/live").totalVotes, 2);
 });
 
@@ -303,7 +303,7 @@ test("a plus-tag address is refused and does not count as another mailbox", asyn
   const tagged = assessRoster({
     employeeId: "KS085",
     name: "nasim",
-    email: "nasimsaker+1@gmail.com",
+    email: "nasimsaker+1@kaz-software.com",
     destinationId: "sundarbans",
     roster,
   });
@@ -327,7 +327,7 @@ test("a plus-tag address is refused and does not count as another mailbox", asyn
   const aliasEmployee = assessRoster({
     employeeId: "KS004",
     name: "shariful",
-    email: "shariful@example.com",
+    email: "shariful@reganalytics.com",
     destinationId: "sundarbans",
     roster,
   });
@@ -335,7 +335,7 @@ test("a plus-tag address is refused and does not count as another mailbox", asyn
     `voteOtps/${aliasEmployee.employeeId}`,
     buildOtpRecord({
       employee: aliasEmployee.employee,
-      email: "masud+bypass@example.com",
+      email: "masud+bypass@kaz-software.com",
       destinationId: aliasEmployee.destinationId,
       otp: "111111",
       nowMs: seeded.nowMs,
@@ -356,7 +356,7 @@ test("a plus-tag address is refused and does not count as another mailbox", asyn
   const fresh = assessRoster({
     employeeId: "KS011",
     name: "anwarul",
-    email: "anwarul@example.com",
+    email: "anwarul@kaz.com.bd",
     destinationId: "sylhet",
     roster,
   });
@@ -364,7 +364,7 @@ test("a plus-tag address is refused and does not count as another mailbox", asyn
     `voteOtps/${fresh.employeeId}`,
     buildOtpRecord({
       employee: fresh.employee,
-      email: "anwarul+1@example.com",
+      email: "anwarul+1@kaz.com.bd",
       destinationId: fresh.destinationId,
       otp: "222222",
       nowMs: seeded.nowMs,
@@ -381,4 +381,70 @@ test("a plus-tag address is refused and does not count as another mailbox", asyn
   assert.equal(uncounted.error, "email_alias");
   assert.equal(db.docs.has("votes/KS011"), false);
   assert.equal(db.docs.get("publicTallies/live").totalVotes, 1);
+});
+
+test("only company email domains can start a vote", () => {
+  const gmail = assessRoster({
+    employeeId: "KS010",
+    name: "masud",
+    email: "masud@gmail.com",
+    destinationId: "sundarbans",
+    roster,
+  });
+  assert.equal(gmail.ok, false);
+  assert.equal(gmail.error, "email_domain");
+
+  const subdomain = assessRoster({
+    employeeId: "KS010",
+    name: "masud",
+    email: "masud@mail.kaz-software.com",
+    destinationId: "sundarbans",
+    roster,
+  });
+  assert.equal(subdomain.ok, false);
+  assert.equal(subdomain.error, "email_domain");
+
+  for (const email of ["masud@kaz-software.com", "masud@kaz.com.bd", "Masud@REGANALYTICS.COM"]) {
+    const company = assessRoster({
+      employeeId: "KS010",
+      name: "masud",
+      email,
+      destinationId: "sundarbans",
+      roster,
+    });
+    assert.equal(company.ok, true, email);
+  }
+});
+
+test("a stored code for another domain does not create a vote", async () => {
+  const db = createMemoryDb();
+  const nowMs = 1_700_000_000_000;
+  const checked = assessRoster({
+    employeeId: "KS010",
+    name: "masud",
+    email: "masud@kaz-software.com",
+    destinationId: "coxstmartin",
+    roster,
+  });
+  db.docs.set(
+    `voteOtps/${checked.employeeId}`,
+    buildOtpRecord({
+      employee: checked.employee,
+      email: "masud@gmail.com",
+      destinationId: checked.destinationId,
+      otp: "123456",
+      nowMs,
+      displayToken: checked.displayToken,
+    })
+  );
+  const result = await commitVerifiedVote(db.runTransaction.bind(db), {
+    employeeId: checked.employeeId,
+    otp: "123456",
+    ip: "203.0.113.8",
+    nowMs,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.error, "email_domain");
+  assert.equal(db.docs.has("votes/KS010"), false);
+  assert.equal(db.docs.has("publicTallies/live"), false);
 });

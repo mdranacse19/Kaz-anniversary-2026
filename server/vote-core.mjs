@@ -48,9 +48,21 @@ export function playfulWarning(token) {
   return `মাসুদ তুমি কি ভালো হবা না?`;
 }
 
+export const ALLOWED_EMAIL_DOMAINS = ["kaz-software.com", "kaz.com.bd", "reganalytics.com"];
+
 export function validEmail(raw) {
   const email = String(raw || "").trim().toLowerCase();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
+}
+
+export function emailDomain(raw) {
+  const email = validEmail(raw);
+  if (!email) return "";
+  return email.slice(email.indexOf("@") + 1);
+}
+
+export function isAllowedVoteEmail(raw) {
+  return ALLOWED_EMAIL_DOMAINS.includes(emailDomain(raw));
 }
 
 /** Mailbox with the +tag removed. nasimsaker+2@gmail.com and nasimsaker@gmail.com are one mailbox. */
@@ -157,6 +169,7 @@ export function assessRoster({ employeeId, name, email, destinationId, roster })
     employee,
     displayToken: firstMeaningfulToken(employee.name),
   };
+  if (!isAllowedVoteEmail(mail)) return { ok: false, error: "email_domain" };
   if (isPlusAlias(mail)) return { ok: false, error: "email_alias", ...identity };
   return { ok: true, ...identity };
 }
@@ -262,6 +275,7 @@ export async function commitVerifiedVote(runTransaction, input) {
       return { ok: false, error: gate.error };
     }
 
+    if (!isAllowedVoteEmail(mail)) return { ok: false, error: "email_domain" };
     if (mailSnap.exists || legacySnap.exists) return { ok: false, error: "email_taken" };
     if (isPlusAlias(mail)) return { ok: false, error: "email_alias" };
 

@@ -1387,6 +1387,7 @@
     }
     const copy = {
       invalid_email: "ইমেইল ঠিকমতো লিখুন।",
+      email_domain: "শুধু কোম্পানির ইমেইল দিন—ব্যক্তিগত ইমেইল দিয়ে এই নির্বাচনে VIP Entry নেই! 😂",
       email_taken: "এই ইমেইল দিয়ে আগেই ভোট দেওয়া হয়েছে।",
       email_alias: "আসল ইমেইল দিন, ভোটটাকে আর জটিল অঙ্ক বানাবেন না! 😂",
       invalid_id: "এমপ্লয়ি আইডি লিখুন।",
@@ -1601,6 +1602,7 @@
         resend_wait: "একটু পরে আবার কোড পাঠাতে পারবেন।",
         resend_limit: "অনেকবার কোড পাঠানো হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।",
         already_voted: "আপনি ইতিমধ্যে ভোট দিয়েছেন। আর বদলানো যায় না।",
+        email_domain: "শুধু কোম্পানির ইমেইল দিন—ব্যক্তিগত ইমেইল দিয়ে এই নির্বাচনে VIP Entry নেই! 😂",
         email_taken: "এই ইমেইল দিয়ে আগেই ভোট দেওয়া হয়েছে।",
         email_alias: "আসল ইমেইল দিন, ভোটটাকে আর জটিল অঙ্ক বানাবেন না! 😂",
         mail_failed: "কোড পাঠানো যায়নি। একটু পর আবার চেষ্টা করুন।",
@@ -1671,18 +1673,19 @@
         otp_attempts: "অনেকবার ভুল কোড। আবার কোড পাঠান।",
         otp_missing: "কোড পাওয়া যায়নি। আবার কোড পাঠান।",
         already_voted: "আপনি ইতিমধ্যে ভোট দিয়েছেন। আর বদলানো যায় না।",
+        email_domain: "শুধু কোম্পানির ইমেইল দিন—ব্যক্তিগত ইমেইল দিয়ে এই নির্বাচনে VIP Entry নেই! 😂",
         email_taken: "এই ইমেইল দিয়ে আগেই ভোট দেওয়া হয়েছে।",
         email_alias: "আসল ইমেইল দিন, ভোটটাকে আর জটিল অঙ্ক বানাবেন না! 😂",
         network: "নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।",
       };
       showModalError(err, (result && result.warning) || copy[result && result.error] || "কোড মিলছে না।");
-      if (result && (result.error === "otp_expired" || result.error === "otp_used" || result.error === "otp_attempts" || result.error === "already_voted" || result.error === "email_taken" || result.error === "email_alias")) {
+      if (result && (result.error === "otp_expired" || result.error === "otp_used" || result.error === "otp_attempts" || result.error === "already_voted" || result.error === "email_domain" || result.error === "email_taken" || result.error === "email_alias")) {
         if (pendingOtp) {
-          pendingOtp.expired = result.error !== "already_voted" && result.error !== "email_taken" && result.error !== "email_alias";
+          pendingOtp.expired = result.error !== "already_voted" && result.error !== "email_domain" && result.error !== "email_taken" && result.error !== "email_alias";
           // A dead code has no cooldown left to wait for.
           pendingOtp.resendAt = 0;
         }
-        if (result.error === "already_voted" || result.error === "email_taken" || result.error === "email_alias") pendingOtp = null;
+        if (result.error === "already_voted" || result.error === "email_domain" || result.error === "email_taken" || result.error === "email_alias") pendingOtp = null;
         syncOtpResend();
       }
       return;
