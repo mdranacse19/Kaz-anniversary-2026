@@ -11,7 +11,9 @@ import {
   canonicalEmployeeId,
   commitVerifiedVote,
   createMemoryDb,
+  emailClaimPath,
   hashOtp,
+  mailboxKey,
   namesMatch,
   playfulWarning,
   resendGate,
@@ -295,4 +297,88 @@ test("a stored email cannot be saved on another vote", async () => {
   assert.equal(third.ok, true);
   assert.equal(db.docs.get("votes/KS011").email, "anwarul@example.com");
   assert.equal(db.docs.get("publicTallies/live").totalVotes, 2);
+});
+
+test("a plus-tag address is refused and does not count as another mailbox", async () => {
+  const tagged = assessRoster({
+    employeeId: "KS085",
+    name: "nasim",
+    email: "nasimsaker+1@gmail.com",
+    destinationId: "sundarbans",
+    roster,
+  });
+  assert.equal(tagged.ok, false);
+  assert.equal(tagged.error, "email_alias");
+  assert.equal(mailboxKey("NasimSaker+2@Gmail.com"), "nasimsaker@gmail.com");
+  assert.equal(mailboxKey("monir.smh+tour@kazsystems.com"), "monir.smh@kazsystems.com");
+  assert.equal(emailClaimPath("nasimsaker+1@gmail.com"), emailClaimPath("nasimsaker@gmail.com"));
+
+  const db = createMemoryDb();
+  const seeded = seedOtp(db, "654321");
+  const first = await commitVerifiedVote(db.runTransaction.bind(db), {
+    employeeId: seeded.employeeId,
+    otp: seeded.otp,
+    ip: "203.0.113.1",
+    nowMs: seeded.nowMs + 10,
+  });
+  assert.equal(first.ok, true);
+  assert.equal(db.docs.get("publicTallies/live").totalVotes, 1);
+
+  const aliasEmployee = assessRoster({
+    employeeId: "KS004",
+    name: "shariful",
+    email: "shariful@example.com",
+    destinationId: "sundarbans",
+    roster,
+  });
+  db.docs.set(
+    `voteOtps/${aliasEmployee.employeeId}`,
+    buildOtpRecord({
+      employee: aliasEmployee.employee,
+      email: "masud+bypass@example.com",
+      destinationId: aliasEmployee.destinationId,
+      otp: "111111",
+      nowMs: seeded.nowMs,
+      displayToken: aliasEmployee.displayToken,
+    })
+  );
+  const aliasVote = await commitVerifiedVote(db.runTransaction.bind(db), {
+    employeeId: aliasEmployee.employeeId,
+    otp: "111111",
+    ip: "203.0.113.2",
+    nowMs: seeded.nowMs + 20,
+  });
+  assert.equal(aliasVote.ok, false);
+  assert.equal(aliasVote.error, "email_taken");
+  assert.equal(db.docs.has("votes/KS004"), false);
+  assert.equal(db.docs.get("publicTallies/live").totalVotes, 1);
+
+  const fresh = assessRoster({
+    employeeId: "KS011",
+    name: "anwarul",
+    email: "anwarul@example.com",
+    destinationId: "sylhet",
+    roster,
+  });
+  db.docs.set(
+    `voteOtps/${fresh.employeeId}`,
+    buildOtpRecord({
+      employee: fresh.employee,
+      email: "anwarul+1@example.com",
+      destinationId: fresh.destinationId,
+      otp: "222222",
+      nowMs: seeded.nowMs,
+      displayToken: fresh.displayToken,
+    })
+  );
+  const uncounted = await commitVerifiedVote(db.runTransaction.bind(db), {
+    employeeId: fresh.employeeId,
+    otp: "222222",
+    ip: "203.0.113.3",
+    nowMs: seeded.nowMs + 30,
+  });
+  assert.equal(uncounted.ok, false);
+  assert.equal(uncounted.error, "email_alias");
+  assert.equal(db.docs.has("votes/KS011"), false);
+  assert.equal(db.docs.get("publicTallies/live").totalVotes, 1);
 });

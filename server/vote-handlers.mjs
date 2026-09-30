@@ -15,6 +15,7 @@ import {
   canonicalEmployeeId,
   commitVerifiedVote,
   emailClaimPath,
+  mailboxKey,
   generateOtp,
   otpAvailability,
   playfulWarning,
@@ -309,7 +310,7 @@ async function handleRequest(body) {
     destinationId: body.destinationId,
     roster,
   });
-  if (!checked.ok) return { status: 400, body: checked };
+  if (!checked.ok && checked.error !== "email_alias") return { status: 400, body: checked };
 
   const db = await firestore();
   const voteSnap = await db.doc(`votes/${checked.employeeId}`).get();
@@ -323,11 +324,15 @@ async function handleRequest(body) {
       },
     };
   }
-  const mailSnap = await db.doc(emailClaimPath(checked.email)).get();
-  const legacyMail = await db.collection("votes").where("email", "==", checked.email).limit(1).get();
-  if (mailSnap.exists || !legacyMail.empty) {
+  const mailbox = mailboxKey(checked.email);
+  const mailSnap = mailbox ? await db.doc(emailClaimPath(mailbox)).get() : null;
+  const legacyMail = mailbox
+    ? await db.collection("votes").where("email", "==", mailbox).limit(1).get()
+    : null;
+  if ((mailSnap && mailSnap.exists) || (legacyMail && !legacyMail.empty)) {
     return { status: 409, body: { ok: false, error: "email_taken" } };
   }
+  if (!checked.ok) return { status: 400, body: { ok: false, error: checked.error } };
   const nowMs = Date.now();
   const otpRef = db.doc(`voteOtps/${checked.employeeId}`);
   const otpSnap = await otpRef.get();

@@ -53,9 +53,34 @@ export function validEmail(raw) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
 }
 
-/** Firestore id for one stored address. Case does not make a second address. */
+/** Mailbox with the +tag removed. nasimsaker+2@gmail.com and nasimsaker@gmail.com are one mailbox. */
+export function mailboxKey(raw) {
+  const email = validEmail(raw);
+  if (!email) return "";
+  const at = email.indexOf("@");
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  const plus = local.indexOf("+");
+  const base = plus === -1 ? local : local.slice(0, plus);
+  if (!base) return "";
+  return `${base}@${domain}`;
+}
+
+export function isPlusAlias(raw) {
+  const email = validEmail(raw);
+  if (!email) return false;
+  const local = email.slice(0, email.indexOf("@"));
+  return local.includes("+");
+}
+
+/** A plus-tag address is stored only as a record of an old bypass. It does not add to the live count. */
+export function voteCountsTowardTally(email, destination) {
+  return DEST_IDS.includes(destination) && !!validEmail(email) && !isPlusAlias(email);
+}
+
+/** Firestore id for one mailbox. The +tag does not make a second address. */
 export function emailClaimPath(email) {
-  const mail = validEmail(email);
+  const mail = mailboxKey(email);
   return mail ? `voteEmails/${sha256(mail)}` : "";
 }
 
@@ -125,14 +150,15 @@ export function assessRoster({ employeeId, name, email, destinationId, roster })
   if (!namesMatch(name, employee.name)) {
     return { ok: false, error: "name_not_found", errors: ["name_not_found"] };
   }
-  return {
-    ok: true,
+  const identity = {
     employeeId: id,
     email: mail,
     destinationId,
     employee,
     displayToken: firstMeaningfulToken(employee.name),
   };
+  if (isPlusAlias(mail)) return { ok: false, error: "email_alias", ...identity };
+  return { ok: true, ...identity };
 }
 
 export function buildOtpRecord({ employee, email, destinationId, otp, nowMs, displayToken, sends }) {
@@ -217,9 +243,10 @@ export async function commitVerifiedVote(runTransaction, input) {
     const tallySnap = await tx.get("publicTallies/live");
     const challenge = otpSnap.exists ? otpSnap.data : null;
     const mail = validEmail(challenge && challenge.email);
+    const mailbox = mailboxKey(mail);
     const mailPath = emailClaimPath(mail);
     const mailSnap = mailPath ? await tx.get(mailPath) : { exists: false };
-    const legacySnap = mail ? await tx.queryOne("votes", "email", mail) : { exists: false };
+    const legacySnap = mailbox ? await tx.queryOne("votes", "email", mailbox) : { exists: false };
 
     if (voteSnap.exists) {
       return {
@@ -236,6 +263,7 @@ export async function commitVerifiedVote(runTransaction, input) {
     }
 
     if (mailSnap.exists || legacySnap.exists) return { ok: false, error: "email_taken" };
+    if (isPlusAlias(mail)) return { ok: false, error: "email_alias" };
 
     const stamp = nowIso(new Date(nowMs));
     const record = {
@@ -258,7 +286,7 @@ export async function commitVerifiedVote(runTransaction, input) {
     DEST_IDS.forEach((id) => {
       counts[id] = Math.max(0, Number(prev[id]) || 0);
     });
-    if (DEST_IDS.includes(challenge.destinationId)) counts[challenge.destinationId] += 1;
+    if (voteCountsTowardTally(record.email, challenge.destinationId)) counts[challenge.destinationId] += 1;
     const totalVotes = DEST_IDS.reduce((sum, id) => sum + counts[id], 0);
     await tx.set("publicTallies/live", { counts, totalVotes, updatedAt: stamp });
     return { ok: true, vote: record, counts, totalVotes };
