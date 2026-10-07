@@ -19,13 +19,20 @@ import {
   generateOtp,
   otpAvailability,
   playfulWarning,
+  readVotingClosesAt,
   resendGate,
   reusableOtp,
+  votingClosed,
 } from "./vote-core.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const roster = JSON.parse(readFileSync(join(ROOT, "data/employees.json"), "utf8"));
+const votingClosesAt = readVotingClosesAt(readFileSync(join(ROOT, "js/config.js"), "utf8"));
+
+function votingIsClosed(nowMs = Date.now()) {
+  return votingClosed(votingClosesAt, nowMs);
+}
 
 function clientIp(req) {
   const forwarded = req.headers["x-forwarded-for"];
@@ -303,6 +310,7 @@ async function sendOtpMail(to, otp, destinationId) {
 }
 
 async function handleRequest(body) {
+  if (votingIsClosed()) return { status: 403, body: { ok: false, error: "voting_closed" } };
   const checked = assessRoster({
     employeeId: body.employeeId,
     name: body.name,
@@ -412,11 +420,14 @@ async function handleVerify(body, ip) {
   const employeeId = canonicalEmployeeId(body.employeeId);
   if (!employeeId) return { status: 400, body: { ok: false, error: "invalid_id" } };
   const db = await firestore();
+  const nowMs = Date.now();
+  if (votingIsClosed(nowMs)) return { status: 403, body: { ok: false, error: "voting_closed" } };
   const result = await commitVerifiedVote(runTransaction(db), {
     employeeId,
     otp: body.otp,
     ip,
-    nowMs: Date.now(),
+    nowMs,
+    closesAt: votingClosesAt,
   });
   return { status: result.ok ? 200 : 400, body: result };
 }

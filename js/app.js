@@ -1029,6 +1029,56 @@
     return !!(Vote && typeof Vote.canChangeVote === "function" && Vote.canChangeVote());
   }
 
+  function votingClosed() {
+    return !!(Vote && typeof Vote.votingClosed === "function" && Vote.votingClosed());
+  }
+
+  let voteCloseTimer = 0;
+
+  function renderVoteCloseBanner() {
+    const el = $("#voteCloseBanner");
+    if (!el) return;
+    const at = Vote && typeof Vote.votingClosesAtMs === "function" ? Vote.votingClosesAtMs() : null;
+    if (at == null) {
+      el.classList.add("hidden");
+      el.classList.remove("vote-close-banner--closed");
+      el.textContent = "";
+      return;
+    }
+    el.classList.remove("hidden");
+    const left = at - Date.now();
+    if (left <= 0) {
+      el.classList.add("vote-close-banner--closed");
+      el.textContent = "ভোট বন্ধ হয়ে গেছে";
+      return;
+    }
+    el.classList.remove("vote-close-banner--closed");
+    const total = Math.floor(left / 1000);
+    const days = Math.floor(total / 86400);
+    const hours = Math.floor((total % 86400) / 3600);
+    const mins = Math.floor((total % 3600) / 60);
+    const secs = total % 60;
+    const parts = [];
+    if (days) parts.push(`${bn(days)} দিন`);
+    parts.push(`${bn(String(hours).padStart(2, "0"))} ঘণ্টা`);
+    parts.push(`${bn(String(mins).padStart(2, "0"))} মিনিট`);
+    parts.push(`${bn(String(secs).padStart(2, "0"))} সেকেন্ড`);
+    el.textContent = `ভোট বন্ধ হতে বাকি ${parts.join(" ")}`;
+  }
+
+  function startVoteCloseClock() {
+    renderVoteCloseBanner();
+    window.clearInterval(voteCloseTimer);
+    const at = Vote && typeof Vote.votingClosesAtMs === "function" ? Vote.votingClosesAtMs() : null;
+    if (at == null || votingClosed()) return;
+    voteCloseTimer = window.setInterval(() => {
+      renderVoteCloseBanner();
+      if (!votingClosed()) return;
+      window.clearInterval(voteCloseTimer);
+      if (state.view === "finale") renderFinale();
+    }, 1000);
+  }
+
   function syncFinaleVoteBlurb() {
     const el = $("#finaleVoteBlurb");
     if (!el) return;
@@ -1164,7 +1214,9 @@
 
     const note = $("#voteNote");
     if (note) {
-      if (!cast && !(allowChange && state.voteChanging)) {
+      if (votingClosed()) {
+        note.textContent = "ভোট বন্ধ হয়ে গেছে। ফলাফল দেখা যাবে।";
+      } else if (!cast && !(allowChange && state.voteChanging)) {
         note.textContent = allowChange
           ? "ভোট দেওয়ার আগে আপনার নাম লিখতে হবে। চাইলে পরে বদলান বা বাতিল করতে পারবেন।"
           : "ভোট দেওয়ার আগে আপনার নাম লিখতে হবে। একবার দিলে আর বদলানো যাবে না।";
@@ -1387,6 +1439,7 @@
     }
     const copy = {
       invalid_email: "ইমেইল ঠিকমতো লিখুন।",
+      voting_closed: "ভোট বন্ধ হয়ে গেছে।",
       email_domain: "শুধু কোম্পানির ইমেইল দিন—ব্যক্তিগত ইমেইল দিয়ে এই নির্বাচনে VIP Entry নেই! 😂",
       email_taken: "এই ইমেইল দিয়ে আগেই ভোট দেওয়া হয়েছে।",
       email_alias: "আসল ইমেইল দিন, ভোটটাকে আর জটিল অঙ্ক বানাবেন না! 😂",
@@ -1602,6 +1655,7 @@
         resend_wait: "একটু পরে আবার কোড পাঠাতে পারবেন।",
         resend_limit: "অনেকবার কোড পাঠানো হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।",
         already_voted: "আপনি ইতিমধ্যে ভোট দিয়েছেন। আর বদলানো যায় না।",
+        voting_closed: "ভোট বন্ধ হয়ে গেছে।",
         email_domain: "শুধু কোম্পানির ইমেইল দিন—ব্যক্তিগত ইমেইল দিয়ে এই নির্বাচনে VIP Entry নেই! 😂",
         email_taken: "এই ইমেইল দিয়ে আগেই ভোট দেওয়া হয়েছে।",
         email_alias: "আসল ইমেইল দিন, ভোটটাকে আর জটিল অঙ্ক বানাবেন না! 😂",
@@ -1673,19 +1727,20 @@
         otp_attempts: "অনেকবার ভুল কোড। আবার কোড পাঠান।",
         otp_missing: "কোড পাওয়া যায়নি। আবার কোড পাঠান।",
         already_voted: "আপনি ইতিমধ্যে ভোট দিয়েছেন। আর বদলানো যায় না।",
+        voting_closed: "ভোট বন্ধ হয়ে গেছে।",
         email_domain: "শুধু কোম্পানির ইমেইল দিন—ব্যক্তিগত ইমেইল দিয়ে এই নির্বাচনে VIP Entry নেই! 😂",
         email_taken: "এই ইমেইল দিয়ে আগেই ভোট দেওয়া হয়েছে।",
         email_alias: "আসল ইমেইল দিন, ভোটটাকে আর জটিল অঙ্ক বানাবেন না! 😂",
         network: "নেটওয়ার্ক সমস্যা। একটু পর আবার চেষ্টা করুন।",
       };
       showModalError(err, (result && result.warning) || copy[result && result.error] || "কোড মিলছে না।");
-      if (result && (result.error === "otp_expired" || result.error === "otp_used" || result.error === "otp_attempts" || result.error === "already_voted" || result.error === "email_domain" || result.error === "email_taken" || result.error === "email_alias")) {
+      if (result && (result.error === "otp_expired" || result.error === "otp_used" || result.error === "otp_attempts" || result.error === "already_voted" || result.error === "voting_closed" || result.error === "email_domain" || result.error === "email_taken" || result.error === "email_alias")) {
         if (pendingOtp) {
-          pendingOtp.expired = result.error !== "already_voted" && result.error !== "email_domain" && result.error !== "email_taken" && result.error !== "email_alias";
+          pendingOtp.expired = result.error !== "already_voted" && result.error !== "voting_closed" && result.error !== "email_domain" && result.error !== "email_taken" && result.error !== "email_alias";
           // A dead code has no cooldown left to wait for.
           pendingOtp.resendAt = 0;
         }
-        if (result.error === "already_voted" || result.error === "email_domain" || result.error === "email_taken" || result.error === "email_alias") pendingOtp = null;
+        if (result.error === "already_voted" || result.error === "voting_closed" || result.error === "email_domain" || result.error === "email_taken" || result.error === "email_alias") pendingOtp = null;
         syncOtpResend();
       }
       return;
@@ -1713,6 +1768,7 @@
     const allowChange = canChangeVote();
     const changing = allowChange && state.voteChanging;
     const locked = !!votedId && !changing;
+    const closed = votingClosed();
     const counts = (state.voteResults && state.voteResults.counts) || {};
     const totalVotes = (state.voteResults && state.voteResults.totalVotes) || 0;
     // Cards choreograph in only on the first paint of this visit; re-renders after
@@ -1722,19 +1778,20 @@
 
     wrap.innerHTML = window.DESTINATIONS.map((d, i) => {
       const selected = votedId === d.id && !changing;
-      const disabled = locked && !selected;
+      const disabled = (locked && !selected) || (closed && !selected);
       const pct = pctOfTotal(counts[d.id] || 0, totalVotes);
       const lockedOther = locked && !selected;
       let voteBtnLabel = "ভোট দিন";
-      if (changing) voteBtnLabel = votedId === d.id ? "এখানে রাখুন" : "এতে বদলান";
+      if (changing && !closed) voteBtnLabel = votedId === d.id ? "এখানে রাখুন" : "এতে বদলান";
+      else if (closed && !selected) voteBtnLabel = "ভোট বন্ধ";
       else if (lockedOther) voteBtnLabel = "অন্য গন্তব্যে ভোট দিয়েছেন";
       else if (selected) voteBtnLabel = "ভোট দেওয়া হয়েছে ✓";
       else if (pendingOtp && pendingOtp.destinationId === d.id && pendingOtp.expired) voteBtnLabel = "নতুন কোড পাঠান";
       else if (state.voteBusy) voteBtnLabel = "ভোট দিন";
 
-      const resumeHere = !!(pendingOtp && pendingOtp.destinationId === d.id && !locked);
+      const resumeHere = !closed && !!(pendingOtp && pendingOtp.destinationId === d.id && !locked);
       // A live code belongs to one destination: no other vote can start until it is used or expires.
-      const codeLocked = otpIsLive() && !locked && !changing;
+      const codeLocked = !closed && otpIsLive() && !locked && !changing;
       const resumeControls = resumeHere && !pendingOtp.expired
         ? `<button type="button" class="btn-primary focus-ring rounded-full px-4 py-2 text-sm cursor-pointer font-medium" data-resume-otp="${d.id}">কোড দিন</button>`
         : resumeHere
@@ -1795,7 +1852,7 @@
                   : `<button type="button"
               class="${lockedOther ? "btn-ghost" : "btn-primary"} focus-ring rounded-full px-4 py-2 text-sm cursor-pointer font-medium inline-flex items-center gap-2"
               data-vote="${d.id}"
-              ${locked || state.voteBusy ? "disabled" : ""}
+              ${locked || closed || state.voteBusy ? "disabled" : ""}
               aria-pressed="${selected ? "true" : "false"}">
               ${voteBtnLabel}
             </button>`
@@ -2100,6 +2157,16 @@
   async function handleVote(destinationId, btn) {
     if (!Vote || state.voteBusy) return;
 
+    if (votingClosed()) {
+      setVoteStatus(
+        "info",
+        `<p class="vote-status__title">ভোট বন্ধ</p>
+         <p class="vote-status__body">ভোট বন্ধ হয়ে গেছে। ফলাফল দেখা যাবে।</p>`
+      );
+      await renderFinale({ ui: { keepStatus: true } });
+      return;
+    }
+
     if (!Vote.DEST_IDS.includes(destinationId)) {
       setVoteStatus(
         "error",
@@ -2322,6 +2389,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     initBriefing();
+    startVoteCloseClock();
     if (jsMotion) {
       navPill = Motion.pill($(".float-nav"), "nav-pill");
       Motion.dust($(".intro-stage"), 12);

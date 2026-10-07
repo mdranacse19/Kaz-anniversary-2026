@@ -869,6 +869,23 @@ html.js-motion .reveal.visible {
   display: none;
 }
 
+.vote-close-banner {
+  margin: 0.85rem 0 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(233, 180, 76, 0.5);
+  background: rgba(233, 180, 76, 0.14);
+  color: #f0d78c;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.vote-close-banner--closed {
+  border-color: rgba(251, 113, 133, 0.6);
+  background: rgba(251, 113, 133, 0.18);
+  color: #fecdd3;
+}
+
 .live-vote__head .live-vote__sub {
   font-family: var(--font-ui);
   font-size: 0.95rem;

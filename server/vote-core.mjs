@@ -65,6 +65,21 @@ export function isAllowedVoteEmail(raw) {
   return ALLOWED_EMAIL_DOMAINS.includes(emailDomain(raw));
 }
 
+/** The votingClosesAt string from js/config.js. Blank when the field is missing. */
+export function readVotingClosesAt(source) {
+  const match = String(source || "").match(/votingClosesAt\s*:\s*"([^"]*)"/);
+  return match ? match[1] : "";
+}
+
+/** True at or after closesAt. A blank or unreadable value leaves voting open. */
+export function votingClosed(closesAt, nowMs) {
+  const raw = String(closesAt || "").trim();
+  if (!raw) return false;
+  const at = Date.parse(raw);
+  if (!Number.isFinite(at)) return false;
+  return Number(nowMs) >= at;
+}
+
 /** Mailbox with the +tag removed. nasimsaker+2@gmail.com and nasimsaker@gmail.com are one mailbox. */
 export function mailboxKey(raw) {
   const email = validEmail(raw);
@@ -251,6 +266,7 @@ export async function commitVerifiedVote(runTransaction, input) {
   const ip = String(input.ip || "");
 
   return runTransaction(async (tx) => {
+    if (votingClosed(input.closesAt, nowMs)) return { ok: false, error: "voting_closed" };
     const voteSnap = await tx.get(`votes/${employeeId}`);
     const otpSnap = await tx.get(`voteOtps/${employeeId}`);
     const tallySnap = await tx.get("publicTallies/live");

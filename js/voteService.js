@@ -78,6 +78,23 @@
     return !!(global.SITE_CONFIG && global.SITE_CONFIG.allowChangeVote === true);
   }
 
+  function votingClosesAt() {
+    return global.SITE_CONFIG && global.SITE_CONFIG.votingClosesAt ? String(global.SITE_CONFIG.votingClosesAt) : "";
+  }
+
+  function votingClosesAtMs() {
+    const raw = votingClosesAt().trim();
+    if (!raw) return null;
+    const at = Date.parse(raw);
+    return Number.isFinite(at) ? at : null;
+  }
+
+  function votingClosed(nowMs) {
+    const at = votingClosesAtMs();
+    if (at == null) return false;
+    return (nowMs == null ? Date.now() : Number(nowMs)) >= at;
+  }
+
   function apiBase() {
     const configured = global.SITE_CONFIG && global.SITE_CONFIG.voteApiUrl;
     if (configured) return String(configured).replace(/\/$/, "");
@@ -275,6 +292,7 @@
   }
 
   async function requestOtp(input) {
+    if (votingClosed()) return { ok: false, error: "voting_closed" };
     if (busy) return { ok: false, error: "busy" };
     if (!input || !DEST_IDS.includes(input.destinationId)) return { ok: false, error: "invalid" };
     busy = true;
@@ -304,6 +322,7 @@
   }
 
   async function verifyOtp(input) {
+    if (votingClosed()) return { ok: false, error: "voting_closed" };
     if (busy) return { ok: false, error: "busy" };
     busy = true;
     try {
@@ -366,6 +385,8 @@
     getCastVote,
     hasUserVoted,
     canChangeVote,
+    votingClosed,
+    votingClosesAtMs,
     calculateTotals,
     getResults,
     subscribeResults,

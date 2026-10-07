@@ -17,7 +17,9 @@ import {
   namesMatch,
   playfulWarning,
   resendGate,
+  readVotingClosesAt,
   reusableOtp,
+  votingClosed,
 } from "./vote-core.mjs";
 
 const roster = JSON.parse(readFileSync(new URL("../data/employees.json", import.meta.url), "utf8"));
@@ -445,6 +447,83 @@ test("a stored code for another domain does not create a vote", async () => {
   });
   assert.equal(result.ok, false);
   assert.equal(result.error, "email_domain");
+  assert.equal(db.docs.has("votes/KS010"), false);
+  assert.equal(db.docs.has("publicTallies/live"), false);
+});
+
+function plantCompanyOtp(db, otp, nowMs) {
+  const checked = assessRoster({
+    employeeId: "KS010",
+    name: "masud",
+    email: "masud@kaz-software.com",
+    destinationId: "sundarbans",
+    roster,
+  });
+  db.docs.set(
+    `voteOtps/${checked.employeeId}`,
+    buildOtpRecord({
+      employee: checked.employee,
+      email: checked.email,
+      destinationId: checked.destinationId,
+      otp,
+      nowMs,
+      displayToken: checked.displayToken,
+    })
+  );
+}
+
+test("voting stays open until the configured instant", () => {
+  const nowMs = 1_700_000_000_000;
+  assert.equal(votingClosed("", nowMs), false);
+  assert.equal(votingClosed("   ", nowMs), false);
+  assert.equal(votingClosed("not-a-date", nowMs), false);
+  assert.equal(readVotingClosesAt('window.SITE_CONFIG = { votingClosesAt: "" };'), "");
+  assert.equal(
+    readVotingClosesAt('votingClosesAt: "2026-10-15T23:59:59+06:00"'),
+    "2026-10-15T23:59:59+06:00"
+  );
+
+  const closesAtMs = nowMs + 60_000;
+  const closesAt = new Date(closesAtMs).toISOString();
+  assert.equal(votingClosed(closesAt, closesAtMs - 1), false);
+  assert.equal(votingClosed(closesAt, closesAtMs), true);
+});
+
+test("a vote is still confirmed one millisecond before close", async () => {
+  const nowMs = 1_700_000_000_000;
+  const closesAtMs = nowMs + 60_000;
+  const closesAt = new Date(closesAtMs).toISOString();
+  const db = createMemoryDb();
+  plantCompanyOtp(db, "123456", nowMs);
+
+  const result = await commitVerifiedVote(db.runTransaction.bind(db), {
+    employeeId: "KS010",
+    otp: "123456",
+    ip: "203.0.113.8",
+    nowMs: closesAtMs - 1,
+    closesAt,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.vote.email, "masud@kaz-software.com");
+  assert.equal(db.docs.get("publicTallies/live").totalVotes, 1);
+});
+
+test("at the close instant a planted code cannot vote or change the tally", async () => {
+  const nowMs = 1_700_000_000_000;
+  const closesAtMs = nowMs + 60_000;
+  const closesAt = new Date(closesAtMs).toISOString();
+  const db = createMemoryDb();
+  plantCompanyOtp(db, "123456", nowMs);
+
+  const result = await commitVerifiedVote(db.runTransaction.bind(db), {
+    employeeId: "KS010",
+    otp: "123456",
+    ip: "203.0.113.8",
+    nowMs: closesAtMs,
+    closesAt,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.error, "voting_closed");
   assert.equal(db.docs.has("votes/KS010"), false);
   assert.equal(db.docs.has("publicTallies/live"), false);
 });
