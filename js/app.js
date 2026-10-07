@@ -1053,6 +1053,9 @@
       return;
     }
     el.classList.remove("vote-close-banner--closed");
+    const when = new Date(at + 6 * 60 * 60 * 1000);
+    const months = ["জানুয়ারি", "ফেব্রুয়ারি", "মার্চ", "এপ্রিল", "মে", "জুন", "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর"];
+    const stamp = `${bn(when.getUTCDate())} ${months[when.getUTCMonth()]} ${bn(when.getUTCFullYear())}, ${bn(String(when.getUTCHours()).padStart(2, "0"))}:${bn(String(when.getUTCMinutes()).padStart(2, "0"))}`;
     const total = Math.floor(left / 1000);
     const days = Math.floor(total / 86400);
     const hours = Math.floor((total % 86400) / 3600);
@@ -1063,10 +1066,11 @@
     parts.push(`${bn(String(hours).padStart(2, "0"))} ঘণ্টা`);
     parts.push(`${bn(String(mins).padStart(2, "0"))} মিনিট`);
     parts.push(`${bn(String(secs).padStart(2, "0"))} সেকেন্ড`);
-    el.textContent = `ভোট বন্ধ হতে বাকি ${parts.join(" ")}`;
+    el.textContent = `ভোট বন্ধ: ${stamp} · বাকি ${parts.join(" ")}`;
   }
 
-  function startVoteCloseClock() {
+  async function startVoteCloseClock() {
+    if (Vote && typeof Vote.loadVotingClose === "function") await Vote.loadVotingClose();
     renderVoteCloseBanner();
     window.clearInterval(voteCloseTimer);
     const at = Vote && typeof Vote.votingClosesAtMs === "function" ? Vote.votingClosesAtMs() : null;
@@ -1414,10 +1418,25 @@
   }
 
   function setExistingOtpOffer(show) {
-    const btn = $("#voteUseExistingOtp");
-    if (!btn) return;
-    btn.classList.toggle("hidden", !show);
+    const existing = $("#voteUseExistingOtp");
+    if (!show) {
+      existing?.remove();
+      return;
+    }
+    if (existing) {
+      existing.disabled = identityFormBusy;
+      return;
+    }
+    const cancel = $("#voteNameCancel");
+    if (!cancel) return;
+    const btn = document.createElement("button");
+    btn.id = "voteUseExistingOtp";
+    btn.type = "button";
+    btn.className = "btn-primary focus-ring rounded-full px-5 py-2.5 cursor-pointer font-medium";
+    btn.textContent = "Use Existing OTP";
     btn.disabled = identityFormBusy;
+    btn.addEventListener("click", continueWithExistingOtp);
+    cancel.before(btn);
   }
 
   function applyIdentityRequestError(requested) {
@@ -2253,7 +2272,6 @@
       if (e.target.id === "attrModal") closeModal();
     });
     $("#voteNameConfirm")?.addEventListener("click", submitVoteName);
-    $("#voteUseExistingOtp")?.addEventListener("click", continueWithExistingOtp);
     $("#voteNameCancel")?.addEventListener("click", () => {
       if (identityFormBusy) return;
       closeVoteNameModal(null);

@@ -44,6 +44,14 @@ const server = http.createServer((req, res) => {
   return handle(req, res, routes[url.pathname]);
 });
 
+server.on("error", (err) => {
+  if (err && err.code === "EADDRINUSE") {
+    console.error(`[vote-api] port ${PORT} is already in use. Stop the old server, then start this one again.`);
+    process.exit(1);
+  }
+  throw err;
+});
+
 server.listen(PORT, HOST, () => {
   console.log(`[vote-api] http://${HOST}:${PORT}`);
 });

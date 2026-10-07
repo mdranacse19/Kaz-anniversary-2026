@@ -17,7 +17,6 @@ import {
   namesMatch,
   playfulWarning,
   resendGate,
-  readVotingClosesAt,
   reusableOtp,
   votingClosed,
 } from "./vote-core.mjs";
@@ -477,11 +476,6 @@ test("voting stays open until the configured instant", () => {
   assert.equal(votingClosed("", nowMs), false);
   assert.equal(votingClosed("   ", nowMs), false);
   assert.equal(votingClosed("not-a-date", nowMs), false);
-  assert.equal(readVotingClosesAt('window.SITE_CONFIG = { votingClosesAt: "" };'), "");
-  assert.equal(
-    readVotingClosesAt('votingClosesAt: "2026-10-15T23:59:59+06:00"'),
-    "2026-10-15T23:59:59+06:00"
-  );
 
   const closesAtMs = nowMs + 60_000;
   const closesAt = new Date(closesAtMs).toISOString();

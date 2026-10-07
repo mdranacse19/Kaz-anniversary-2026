@@ -74,12 +74,39 @@
     return { db: global.firebase.firestore() };
   }
 
+  let allowChangeVoteCache = false;
+  let voteApiUrlCache = "";
+  let closesAtCache = "";
+  let closesAtLoaded = false;
+
   function canChangeVote() {
-    return !!(global.SITE_CONFIG && global.SITE_CONFIG.allowChangeVote === true);
+    return allowChangeVoteCache;
   }
 
   function votingClosesAt() {
-    return global.SITE_CONFIG && global.SITE_CONFIG.votingClosesAt ? String(global.SITE_CONFIG.votingClosesAt) : "";
+    return closesAtCache;
+  }
+
+  async function loadVotingClose() {
+    if (closesAtLoaded) return closesAtCache;
+    const bases = [apiBase()];
+    if (!bases.includes("http://127.0.0.1:8787")) bases.push("http://127.0.0.1:8787");
+    for (const base of bases) {
+      try {
+        const res = await fetch(base + "/api/vote/close", { method: "GET" });
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (!data || data.ok === false) continue;
+        closesAtCache = data.closesAt ? String(data.closesAt) : "";
+        allowChangeVoteCache = data.allowChangeVote === true;
+        voteApiUrlCache = data.voteApiUrl ? String(data.voteApiUrl).replace(/\/$/, "") : "";
+        closesAtLoaded = true;
+        return closesAtCache;
+      } catch {
+        /* try the next vote server */
+      }
+    }
+    return closesAtCache;
   }
 
   function votingClosesAtMs() {
@@ -96,8 +123,7 @@
   }
 
   function apiBase() {
-    const configured = global.SITE_CONFIG && global.SITE_CONFIG.voteApiUrl;
-    if (configured) return String(configured).replace(/\/$/, "");
+    if (voteApiUrlCache) return voteApiUrlCache;
     const host = global.location ? global.location.hostname : "";
     const local = host === "127.0.0.1" || host === "localhost" || host === "";
     return local ? "http://127.0.0.1:8787" : "";
@@ -387,6 +413,7 @@
     canChangeVote,
     votingClosed,
     votingClosesAtMs,
+    loadVotingClose,
     calculateTotals,
     getResults,
     subscribeResults,

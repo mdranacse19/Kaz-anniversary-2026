@@ -65,12 +65,6 @@ export function isAllowedVoteEmail(raw) {
   return ALLOWED_EMAIL_DOMAINS.includes(emailDomain(raw));
 }
 
-/** The votingClosesAt string from js/config.js. Blank when the field is missing. */
-export function readVotingClosesAt(source) {
-  const match = String(source || "").match(/votingClosesAt\s*:\s*"([^"]*)"/);
-  return match ? match[1] : "";
-}
-
 /** True at or after closesAt. A blank or unreadable value leaves voting open. */
 export function votingClosed(closesAt, nowMs) {
   const raw = String(closesAt || "").trim();

@@ -19,7 +19,6 @@ import {
   generateOtp,
   otpAvailability,
   playfulWarning,
-  readVotingClosesAt,
   resendGate,
   reusableOtp,
   votingClosed,
@@ -27,11 +26,76 @@ import {
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
+loadEnvFile(join(ROOT, ".env"));
+
 const roster = JSON.parse(readFileSync(join(ROOT, "data/employees.json"), "utf8"));
-const votingClosesAt = readVotingClosesAt(readFileSync(join(ROOT, "js/config.js"), "utf8"));
+
+function loadEnvFile(path) {
+  let text = "";
+  try {
+    text = readFileSync(path, "utf8");
+  } catch {
+    return;
+  }
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq < 1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    value = value.replace(/\\n/g, "\n");
+    if (process.env[key] == null || process.env[key] === "") process.env[key] = value;
+  }
+}
+
+function envFileValues() {
+  const values = {};
+  let text = "";
+  try {
+    text = readFileSync(join(ROOT, ".env"), "utf8");
+  } catch {
+    return values;
+  }
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq < 1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    values[key] = value.replace(/\\n/g, "\n");
+  }
+  return values;
+}
+
+function voteSetting(key) {
+  const file = envFileValues();
+  if (Object.prototype.hasOwnProperty.call(file, key)) return String(file[key] || "").trim();
+  return String(process.env[key] || "").trim();
+}
+
+function currentVotingClosesAt() {
+  return voteSetting("VOTING_CLOSES_AT");
+}
+
+function allowChangeVote() {
+  const raw = voteSetting("ALLOW_CHANGE_VOTE").toLowerCase();
+  return raw === "true" || raw === "1" || raw === "yes";
+}
+
+function voteApiUrl() {
+  return voteSetting("VOTE_API_URL").replace(/\/$/, "");
+}
 
 function votingIsClosed(nowMs = Date.now()) {
-  return votingClosed(votingClosesAt, nowMs);
+  return votingClosed(currentVotingClosesAt(), nowMs);
 }
 
 function clientIp(req) {
@@ -48,7 +112,7 @@ function send(res, status, body) {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Cache-Control": "no-store",
   });
   res.end(json);
@@ -427,22 +491,44 @@ async function handleVerify(body, ip) {
     otp: body.otp,
     ip,
     nowMs,
-    closesAt: votingClosesAt,
+    closesAt: currentVotingClosesAt(),
   });
   return { status: result.ok ? 200 : 400, body: result };
 }
 
 export { otpMailHtml, otpMailText };
 
+function handleClose() {
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      closesAt: currentVotingClosesAt(),
+      allowChangeVote: allowChangeVote(),
+      voteApiUrl: voteApiUrl(),
+    },
+  };
+}
+
 export const routes = {
   "/api/vote/request": (body) => handleRequest(body),
   "/api/vote/verify": (body, req) => handleVerify(body, clientIp(req)),
   "/api/vote/status": (body) => handleStatus(body),
+  "/api/vote/close": () => handleClose(),
 };
 
 export async function handle(req, res, route) {
   if (req.method === "OPTIONS") {
     send(res, 204, {});
+    return;
+  }
+  if (req.method === "GET") {
+    if (route !== routes["/api/vote/close"]) {
+      send(res, 404, { ok: false, error: "not_found" });
+      return;
+    }
+    const result = route();
+    send(res, result.status, result.body);
     return;
   }
   if (req.method !== "POST" || !route) {
