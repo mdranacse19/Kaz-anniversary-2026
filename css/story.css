@@ -1214,6 +1214,12 @@ html.js-motion #chapterTabs button:active {
   color: var(--text);
   font: inherit;
   caret-color: var(--amber);
+  color-scheme: dark;
+}
+
+.roster-field input::placeholder {
+  color: var(--muted);
+  opacity: 1;
 }
 
 .roster-field select {
@@ -1242,68 +1248,115 @@ html.js-motion #chapterTabs button:active {
   cursor: pointer;
 }
 
-.roster-group {
-  margin-top: 2.75rem;
+.roster-table {
+  width: 100%;
+  margin-top: 1.75rem;
+  border-collapse: collapse;
 }
 
-.roster-group__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-start;
-  gap: 0.85rem;
-  padding-bottom: 0.55rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent, var(--teal)) 65%, transparent);
-}
-
-.roster-group__name {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(1.45rem, 2.2vw, 2rem);
-  line-height: 1.25;
-  color: color-mix(in srgb, var(--accent, var(--text)) 78%, var(--text));
-}
-
-.roster-group__count {
-  margin: 0;
-  font-family: var(--font-body);
-  font-size: 1.15rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
-
-.roster-people {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.roster-person {
-  display: grid;
-  gap: 0.15rem;
-  padding: 0.9rem 0;
+.roster-table th {
+  padding: 0 1rem 0.6rem 0;
   border-bottom: 1px solid var(--line);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: left;
+  color: var(--muted);
 }
 
 .roster-person__name {
-  margin: 0;
   font-weight: 600;
   font-size: 1.05rem;
   line-height: 1.4;
 }
 
 .roster-person__id {
-  margin: 0;
   font-family: var(--font-ui);
   font-size: 0.95rem;
   letter-spacing: 0.03em;
   color: var(--amber);
+  white-space: nowrap;
 }
 
 .roster-person__mail {
-  margin: 0;
   color: var(--muted);
   line-height: 1.45;
   overflow-wrap: anywhere;
+}
+
+.roster-person__dest {
+  font-family: var(--font-display);
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--accent, var(--text)) 78%, var(--text));
+}
+
+@media (max-width: 767px) {
+  .roster-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .roster-table,
+  .roster-table tbody {
+    display: block;
+  }
+
+  .roster-person {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.2rem 1rem;
+    padding: 0.9rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .roster-person td {
+    padding: 0;
+    border: 0;
+  }
+
+  .roster-person__mail,
+  .roster-person__dest {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 768px) {
+  .roster-person td {
+    padding: 0.9rem 1rem 0.9rem 0;
+    border-bottom: 1px solid var(--line);
+    vertical-align: baseline;
+  }
+
+  .roster-table {
+    table-layout: fixed;
+  }
+
+  .roster-table th:nth-child(1),
+  .roster-person__name {
+    width: 28%;
+  }
+
+  .roster-table th:nth-child(2),
+  .roster-person__id {
+    width: 12%;
+  }
+
+  .roster-table th:nth-child(3),
+  .roster-person__mail {
+    width: 32%;
+  }
+
+  .roster-table th:nth-child(4),
+  .roster-person__dest {
+    width: 28%;
+  }
 }
 
 .roster-empty {
@@ -1339,14 +1392,6 @@ html.js-motion #chapterTabs button:active {
 
 .roster-skel__bar:nth-child(3n) {
   width: 46%;
-}
-
-@media (min-width: 768px) {
-  .roster-person {
-    grid-template-columns: minmax(12rem, 1.4fr) 6.5rem minmax(14rem, 1.5fr);
-    column-gap: 1.5rem;
-    align-items: baseline;
-  }
 }
 
 @media (prefers-reduced-motion: no-preference) {

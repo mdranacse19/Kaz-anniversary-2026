@@ -2307,11 +2307,12 @@
     $("#rosterNote")?.addEventListener("click", (e) => {
       if (e.target.closest("[data-roster-clear]")) {
         rosterQuery = "";
+        rosterDest = "";
         const input = $("#rosterQuery");
-        if (input) {
-          input.value = "";
-          input.focus();
-        }
+        const destSelect = $("#rosterDest");
+        if (input) input.value = "";
+        if (destSelect) destSelect.value = "";
+        (input || destSelect)?.focus();
         paintRoster();
       }
       if (e.target.closest("[data-roster-retry]")) reloadRoster();
@@ -2392,7 +2393,8 @@
     return (rosterState.people || []).filter((person) => {
       if (rosterDest && person.destination !== rosterDest) return false;
       if (!q) return true;
-      return `${person.name} ${person.employee_id} ${person.email}`.toLowerCase().includes(q);
+      const destName = getDestById(person.destination)?.name || "";
+      return `${person.name} ${person.employee_id} ${person.email} ${destName}`.toLowerCase().includes(q);
     });
   }
 
@@ -2423,8 +2425,9 @@
     if (note) {
       if (failed) {
         note.innerHTML = `<p class="roster-empty">${escapeHtml(rosterErrorCopy(rosterState.error))}</p><button type="button" class="btn-ghost focus-ring roster-retry" data-roster-retry>আবার চেষ্টা করুন</button>`;
-      } else if (!loading && q && !shown.length) {
-        note.innerHTML = `<p class="roster-empty">এই খোঁজে কেউ মেলেনি।</p><button type="button" class="btn-ghost focus-ring roster-retry" data-roster-clear>খোঁজ মুছুন</button>`;
+      } else if (!loading && (q || rosterDest) && !shown.length) {
+        const miss = q ? "এই খোঁজে কেউ মেলেনি।" : "এই গন্তব্যে এখনো কেউ নয়।";
+        note.innerHTML = `<p class="roster-empty">${miss}</p><button type="button" class="btn-ghost focus-ring roster-retry" data-roster-clear>খোঁজ মুছুন</button>`;
       } else {
         note.innerHTML = "";
       }
@@ -2434,17 +2437,10 @@
       groups.innerHTML = `<div class="roster-skel" aria-hidden="true">${Array.from({ length: 6 }, () => `<span class="roster-skel__bar"></span>`).join("")}</div>`;
       return;
     }
-    if (failed || (q && !shown.length)) {
+    if (failed || ((q || rosterDest) && !shown.length)) {
       groups.innerHTML = "";
       return;
     }
-
-    const byDest = new Map();
-    shown.forEach((person) => {
-      const list = byDest.get(person.destination) || [];
-      list.push(person);
-      byDest.set(person.destination, list);
-    });
 
     const voteCount = new Map();
     people.forEach((person) => {
@@ -2467,34 +2463,33 @@
         destSelect.value = "";
       }
     }
-    const visible = dests.filter((d) => {
-      if (rosterDest && d.id !== rosterDest) return false;
-      if (q && !(byDest.get(d.id) || []).length) return false;
-      return true;
-    });
-    groups.innerHTML = visible
-      .map((dest) => {
-        const list = (byDest.get(dest.id) || []).slice().sort(compareEmployeeId);
-        const rows = list.length
-          ? `<ul class="roster-people">${list
-              .map(
-                (person) => `<li class="roster-person">
-                  <p class="roster-person__name">${escapeHtml(person.name)}</p>
-                  <p class="roster-person__id">${escapeHtml(person.employee_id)}</p>
-                  <p class="roster-person__mail">${escapeHtml(person.email)}</p>
-                </li>`
-              )
-              .join("")}</ul>`
-          : `<p class="roster-empty">এখনো কেউ নয়</p>`;
-        return `<section class="roster-group" style="--accent:${escapeHtml(dest.accent || "#2A9D8F")}">
-          <header class="roster-group__head">
-            <h3 class="roster-group__name">${escapeHtml(dest.name)}</h3>
-            <p class="roster-group__count">${bn(list.length)}</p>
-          </header>
-          ${rows}
-        </section>`;
+
+    const rows = shown
+      .slice()
+      .sort(compareEmployeeId)
+      .map((person) => {
+        const dest = getDestById(person.destination);
+        const destName = dest?.name || person.destination;
+        const accent = dest?.accent || "#2A9D8F";
+        return `<tr class="roster-person" style="--accent:${escapeHtml(accent)}">
+          <td class="roster-person__name">${escapeHtml(person.name)}</td>
+          <td class="roster-person__id">${escapeHtml(person.employee_id)}</td>
+          <td class="roster-person__mail">${escapeHtml(person.email)}</td>
+          <td class="roster-person__dest">${escapeHtml(destName)}</td>
+        </tr>`;
       })
       .join("");
+    groups.innerHTML = `<table class="roster-table">
+      <thead>
+        <tr>
+          <th scope="col">নাম</th>
+          <th scope="col">আইডি</th>
+          <th scope="col">ইমেইল</th>
+          <th scope="col">গন্তব্য</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
   }
 
   function bindGlobalNav() {
