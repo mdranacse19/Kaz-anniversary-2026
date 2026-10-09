@@ -18,5 +18,12 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+
+    // Public roster: employee id, name, email, destination, voted_at.
+    // Written only by the vote API. IP and hashes stay on votes/.
+    match /publicVotes/{employeeId} {
+      allow read: if true;
+      allow write: if false;
+    }
   }
 }

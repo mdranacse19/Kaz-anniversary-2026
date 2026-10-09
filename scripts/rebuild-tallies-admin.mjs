@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
- * Rebuild publicTallies/live from votes, using the Admin SDK in .env.
- * Addresses with a +tag in the local part stay stored but are not counted.
+ * Rebuild publicTallies/live and publicVotes from votes, using the Admin SDK in .env.
+ * Addresses with a +tag in the local part stay stored but are not counted
+ * and are not copied onto the public roster.
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { emptyCounts, nowIso, voteCountsTowardTally } from "../server/vote-core.mjs";
+import { emptyCounts, nowIso, publicVoteFields, voteCountsTowardTally } from "../server/vote-core.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -45,23 +46,58 @@ const db = admin.firestore();
 
 const snap = await db.collection("votes").get();
 const counts = emptyCounts();
+const stamp = nowIso();
+const publicDocs = new Map();
 let counted = 0;
 let skipped = 0;
 snap.forEach((doc) => {
   const data = doc.data() || {};
-  if (voteCountsTowardTally(data.email, data.destination)) {
-    counts[data.destination] += 1;
-    counted += 1;
-  } else {
+  if (!voteCountsTowardTally(data.email, data.destination)) {
     skipped += 1;
+    return;
   }
+  counts[data.destination] += 1;
+  counted += 1;
+  const employeeId = data.employee_id || doc.id;
+  publicDocs.set(
+    employeeId,
+    publicVoteFields({
+      employee_id: employeeId,
+      name: data.name || "",
+      email: data.email || "",
+      destination: data.destination,
+      voted_at: data.voted_at || stamp,
+    })
+  );
 });
 const totalVotes = Object.values(counts).reduce((sum, n) => sum + n, 0);
-const stamp = nowIso();
 await db.doc("publicTallies/live").set({
   counts,
   totalVotes,
   updatedAt: stamp,
   rebuiltAt: stamp,
 });
-console.log(JSON.stringify({ projectId, counted, skipped, totalVotes, counts }, null, 2));
+
+const existing = await db.collection("publicVotes").get();
+const ops = [];
+publicDocs.forEach((fields, employeeId) => {
+  ops.push((batch) => batch.set(db.doc(`publicVotes/${employeeId}`), fields));
+});
+existing.forEach((doc) => {
+  if (!publicDocs.has(doc.id)) ops.push((batch) => batch.delete(doc.ref));
+});
+const CHUNK = 400;
+let written = 0;
+for (let i = 0; i < ops.length; i += CHUNK) {
+  const batch = db.batch();
+  for (const op of ops.slice(i, i + CHUNK)) op(batch);
+  await batch.commit();
+  written += Math.min(CHUNK, ops.length - i);
+}
+console.log(
+  JSON.stringify(
+    { projectId, counted, skipped, totalVotes, counts, publicVotes: publicDocs.size, rosterOps: written },
+    null,
+    2
+  )
+);

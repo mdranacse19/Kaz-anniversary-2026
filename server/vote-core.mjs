@@ -137,6 +137,17 @@ export function emptyCounts() {
   }, {});
 }
 
+/** Fields a colleague may see. IP, hashes, and mailbox keys stay on votes/. */
+export function publicVoteFields(record) {
+  return {
+    employee_id: record.employee_id,
+    name: record.name,
+    email: record.email,
+    destination: record.destination,
+    voted_at: record.voted_at,
+  };
+}
+
 function rosterRows(roster) {
   const list = Array.isArray(roster) ? roster : roster && roster.employees;
   return Array.isArray(list) ? list : [];
@@ -302,6 +313,7 @@ export async function commitVerifiedVote(runTransaction, input) {
       ip,
     };
     await tx.create(`votes/${employeeId}`, record);
+    await tx.create(`publicVotes/${employeeId}`, publicVoteFields(record));
     await tx.create(mailPath, { email: record.email, employeeId });
     await tx.set(`voteOtps/${employeeId}`, { ...challenge, used: true });
 

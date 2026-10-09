@@ -151,7 +151,7 @@
     });
   }
 
-  const views = ["intro", "destinations", "story", "finale"];
+  const views = ["intro", "destinations", "story", "finale", "roster"];
   const chapterIds = ["feel", "see", "do", "journey", "remember"];
   const chapterTitles = ["অনুভূতি", "দেখব", "করব", "যাত্রা", "মনে থাকবে"];
 
@@ -211,6 +211,7 @@
       renderFinaleRoute();
       renderFinale();
     }
+    if (id === "roster") renderRoster();
     if (id === "intro") {
       refreshLiveVote();
       requestAnimationFrame(() => {
@@ -237,7 +238,7 @@
     navPill.update(active);
   }
 
-  /* Deep links: #destinations, #story/<id>, #finale — replaceState only, never scrolls. */
+  /* Deep links: #destinations, #story/<id>, #finale, #roster — replaceState only, never scrolls. */
   function updateHash(id) {
     if (!("history" in window) || !history.replaceState) return;
     let h = id === "intro" ? "" : "#" + id;
@@ -2250,6 +2251,209 @@
     els.forEach((el) => io.observe(el));
   }
 
+  /* ——— Public roster: who voted where ——— */
+  let rosterState = { status: "loading", people: [], error: null };
+  let rosterQuery = "";
+  let rosterCopyTimer = 0;
+  let rosterBound = false;
+
+  function escapeHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function rosterErrorCopy(code) {
+    const reason = code && code !== "snapshot_error" ? ` (${code})` : "";
+    return `তালিকা আসেনি${reason}। আবার চেষ্টা করুন।`;
+  }
+
+  function bindRoster() {
+    if (rosterBound) return;
+    rosterBound = true;
+    $("#rosterSearch")?.addEventListener("submit", (e) => e.preventDefault());
+    $("#rosterQuery")?.addEventListener("input", (e) => {
+      rosterQuery = e.target.value;
+      paintRoster();
+    });
+    $("#rosterCopy")?.addEventListener("click", copyRosterLink);
+    $("#rosterNote")?.addEventListener("click", (e) => {
+      if (e.target.closest("[data-roster-clear]")) {
+        rosterQuery = "";
+        const input = $("#rosterQuery");
+        if (input) {
+          input.value = "";
+          input.focus();
+        }
+        paintRoster();
+      }
+      if (e.target.closest("[data-roster-retry]")) reloadRoster();
+    });
+  }
+
+  function applyRoster(roster) {
+    if (!roster || roster.ok === false) {
+      rosterState = {
+        status: "error",
+        people: [],
+        error: (roster && roster.error) || "snapshot_error",
+      };
+    } else {
+      rosterState = { status: "ready", people: roster.people || [], error: null };
+    }
+    if (state.view === "roster") paintRoster();
+  }
+
+  function startRoster() {
+    bindRoster();
+    if (!Vote || typeof Vote.subscribeRoster !== "function") {
+      applyRoster({ ok: false, error: "firebase_not_configured" });
+      return;
+    }
+    Vote.subscribeRoster(applyRoster);
+  }
+
+  function reloadRoster() {
+    rosterState = { status: "loading", people: [], error: null };
+    paintRoster();
+    if (Vote && typeof Vote.reloadRoster === "function") Vote.reloadRoster();
+    else startRoster();
+  }
+
+  async function copyRosterLink() {
+    const url = `${location.origin}${location.pathname}${location.search}#roster`;
+    const btn = $("#rosterCopy");
+    let ok = false;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+        ok = true;
+      }
+    } catch {
+      ok = false;
+    }
+    if (!ok) {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        ok = document.execCommand("copy");
+      } catch {
+        ok = false;
+      }
+      ta.remove();
+    }
+    if (!btn) return;
+    const urlEl = $("#rosterCopyUrl");
+    if (urlEl) {
+      urlEl.hidden = ok;
+      urlEl.textContent = ok ? "" : url;
+    }
+    btn.textContent = ok ? "লিংক কপি হয়েছে" : "কপি হয়নি — লিংকটি বেছে নিন";
+    window.clearTimeout(rosterCopyTimer);
+    rosterCopyTimer = window.setTimeout(() => {
+      if ($("#rosterCopy")) $("#rosterCopy").textContent = "লিংক কপি করুন";
+    }, 2500);
+  }
+
+  function rosterPeople() {
+    const q = rosterQuery.trim().toLowerCase();
+    const people = rosterState.people || [];
+    if (!q) return people;
+    return people.filter((person) =>
+      `${person.name} ${person.employee_id} ${person.email}`.toLowerCase().includes(q)
+    );
+  }
+
+  function renderRoster() {
+    bindRoster();
+    paintRoster();
+  }
+
+  function paintRoster() {
+    const totalEl = $("#rosterTotal");
+    const note = $("#rosterNote");
+    const groups = $("#rosterGroups");
+    if (!groups) return;
+
+    const loading = rosterState.status === "loading";
+    const failed = rosterState.status === "error";
+    const people = rosterState.people || [];
+    const q = rosterQuery.trim();
+    const shown = rosterPeople();
+
+    if (totalEl) {
+      if (loading) totalEl.textContent = "তালিকা আসছে";
+      else if (failed) totalEl.textContent = "তালিকা আসেনি";
+      else if (!people.length) totalEl.textContent = "এখনো কেউ ভোট দেয়নি";
+      else totalEl.textContent = `${bn(people.length)} জন ভোট দিয়েছেন`;
+    }
+
+    if (note) {
+      if (failed) {
+        note.innerHTML = `<p class="roster-empty">${escapeHtml(rosterErrorCopy(rosterState.error))}</p><button type="button" class="btn-ghost focus-ring roster-retry" data-roster-retry>আবার চেষ্টা করুন</button>`;
+      } else if (!loading && q && !shown.length) {
+        note.innerHTML = `<p class="roster-empty">এই খোঁজে কেউ মেলেনি।</p><button type="button" class="btn-ghost focus-ring roster-retry" data-roster-clear>খোঁজ মুছুন</button>`;
+      } else {
+        note.innerHTML = "";
+      }
+    }
+
+    if (loading) {
+      groups.innerHTML = `<div class="roster-skel" aria-hidden="true">${Array.from({ length: 6 }, () => `<span class="roster-skel__bar"></span>`).join("")}</div>`;
+      return;
+    }
+    if (failed || (q && !shown.length)) {
+      groups.innerHTML = "";
+      return;
+    }
+
+    const byDest = new Map();
+    shown.forEach((person) => {
+      const list = byDest.get(person.destination) || [];
+      list.push(person);
+      byDest.set(person.destination, list);
+    });
+
+    const dests = window.DESTINATIONS || [];
+    const visible = q ? dests.filter((d) => (byDest.get(d.id) || []).length) : dests;
+    groups.innerHTML = visible
+      .map((dest) => {
+        const list = (byDest.get(dest.id) || [])
+          .slice()
+          .sort(
+            (a, b) =>
+              a.name.localeCompare(b.name, "en", { sensitivity: "base" }) ||
+              a.employee_id.localeCompare(b.employee_id)
+          );
+        const rows = list.length
+          ? `<ul class="roster-people">${list
+              .map(
+                (person) => `<li class="roster-person">
+                  <p class="roster-person__name">${escapeHtml(person.name)}</p>
+                  <p class="roster-person__id">${escapeHtml(person.employee_id)}</p>
+                  <p class="roster-person__mail">${escapeHtml(person.email)}</p>
+                </li>`
+              )
+              .join("")}</ul>`
+          : `<p class="roster-empty">এখনো কেউ নয়</p>`;
+        return `<section class="roster-group" style="--accent:${escapeHtml(dest.accent || "#2A9D8F")}">
+          <header class="roster-group__head">
+            <h3 class="roster-group__name">${escapeHtml(dest.name)}</h3>
+            <p class="roster-group__count">${bn(list.length)}</p>
+          </header>
+          ${rows}
+        </section>`;
+      })
+      .join("");
+  }
+
   function bindGlobalNav() {
     $$("[data-nav]").forEach((btn) => {
       btn.addEventListener("click", () => showView(btn.dataset.nav));
@@ -2428,6 +2632,7 @@
     });
     bindGlobalNav();
     bindKbdHint();
+    startRoster();
     syncFinaleVoteBlurb();
     const initial = readHash() || "intro";
     if (initial === "story") renderStory();

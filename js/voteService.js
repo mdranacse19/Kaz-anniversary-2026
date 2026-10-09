@@ -1,13 +1,15 @@
 /* KAZ Anniversary Tour 2026 — live tallies + employee OTP API.
  *
- * Counts come from publicTallies/live. Casting goes through the vote API.
- * The browser never lists votes and never decides uniqueness.
+ * Counts come from publicTallies/live. The roster comes from publicVotes.
+ * Casting goes through the vote API.
+ * The browser never lists the private votes collection and never decides uniqueness.
  * It remembers its own cast vote (localStorage) only to keep showing it after a reload.
  */
 (function (global) {
   const DEST_IDS = ["sundarbans", "sylhet", "sajekkaptai", "nepal", "bandarban", "coxstmartin"];
   const TALLIES = "publicTallies";
   const TALLY_DOC = "live";
+  const PUBLIC_VOTES = "publicVotes";
   const VOTE_KEY = "kaz2026.vote";
 
   let busy = false;
@@ -263,6 +265,124 @@
     });
   }
 
+  let unsubRoster = null;
+  const rosterListeners = new Set();
+  let lastRoster = null;
+
+  function parseRosterSnap(snap) {
+    const people = [];
+    if (!snap) return people;
+    snap.forEach((doc) => {
+      const data = doc.data() || {};
+      const destination = data.destination;
+      if (!DEST_IDS.includes(destination)) return;
+      people.push({
+        employee_id: String(data.employee_id || doc.id || ""),
+        name: String(data.name || ""),
+        email: String(data.email || ""),
+        destination,
+        voted_at: data.voted_at ? String(data.voted_at) : "",
+      });
+    });
+    return people;
+  }
+
+  function notifyRoster(roster) {
+    rosterListeners.forEach((fn) => {
+      try {
+        fn(roster);
+      } catch {
+        /* listener error */
+      }
+    });
+  }
+
+  function listenRoster() {
+    const { db } = ensureApp();
+    return db.collection(PUBLIC_VOTES).onSnapshot(
+      (snap) => {
+        lastRoster = { ok: true, people: parseRosterSnap(snap), error: null };
+        notifyRoster(lastRoster);
+      },
+      (err) => {
+        if (typeof unsubRoster === "function") {
+          const stop = unsubRoster;
+          unsubRoster = null;
+          try {
+            stop();
+          } catch {
+            /* already stopped */
+          }
+        }
+        lastRoster = {
+          ok: false,
+          people: [],
+          error: String(err?.code || err?.message || "snapshot_error"),
+        };
+        notifyRoster(lastRoster);
+      }
+    );
+  }
+
+  function subscribeRoster(callback) {
+    if (typeof callback === "function") rosterListeners.add(callback);
+
+    if (!global.FIREBASE_ENABLED) {
+      const roster = { ok: false, people: [], error: "firebase_not_configured" };
+      lastRoster = roster;
+      if (callback) callback(roster);
+      return () => rosterListeners.delete(callback);
+    }
+
+    if (!unsubRoster) {
+      try {
+        unsubRoster = listenRoster();
+      } catch (e) {
+        lastRoster = {
+          ok: false,
+          people: [],
+          error: String(e?.code || e?.message || "unavailable"),
+        };
+        notifyRoster(lastRoster);
+      }
+    } else if (lastRoster && callback) {
+      callback(lastRoster);
+    }
+
+    return () => {
+      rosterListeners.delete(callback);
+    };
+  }
+
+  function reloadRoster() {
+    if (typeof unsubRoster === "function") {
+      const stop = unsubRoster;
+      unsubRoster = null;
+      try {
+        stop();
+      } catch {
+        /* already stopped */
+      }
+    }
+    lastRoster = null;
+    if (!rosterListeners.size) return;
+    if (!global.FIREBASE_ENABLED) {
+      lastRoster = { ok: false, people: [], error: "firebase_not_configured" };
+      notifyRoster(lastRoster);
+      return;
+    }
+    try {
+      unsubRoster = listenRoster();
+    } catch (e) {
+      lastRoster = {
+        ok: false,
+        people: [],
+        error: String(e?.code || e?.message || "unavailable"),
+      };
+      notifyRoster(lastRoster);
+    }
+  }
+
   function subscribeResults(callback) {
     if (typeof callback === "function") liveListeners.add(callback);
 
@@ -417,6 +537,8 @@
     calculateTotals,
     getResults,
     subscribeResults,
+    subscribeRoster,
+    reloadRoster,
     requestOtp,
     otpStatus,
     verifyOtp,

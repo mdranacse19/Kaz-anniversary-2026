@@ -202,6 +202,7 @@ test("wrong, expired, reused, and exhausted OTPs do not vote", async () => {
   });
   assert.equal(reused.error, "otp_used");
   assert.equal(db.docs.has("publicTallies/live"), false);
+  assert.equal(db.docs.has(`publicVotes/${seeded.employeeId}`), false);
 });
 
 test("two simultaneous verifies create one vote and one tally", async () => {
@@ -228,6 +229,16 @@ test("two simultaneous verifies create one vote and one tally", async () => {
   assert.equal(db.docs.get("votes/KS010").employee_id, "KS010");
   assert.equal(db.docs.get("publicTallies/live").counts.coxstmartin, 1);
   assert.equal(db.docs.get("publicTallies/live").totalVotes, 1);
+  const pub = db.docs.get("publicVotes/KS010");
+  assert.equal(pub.employee_id, "KS010");
+  assert.equal(pub.name, "Hasan Md. Masud Ul Haque");
+  assert.equal(pub.email, "masud@kaz-software.com");
+  assert.equal(pub.destination, "coxstmartin");
+  assert.equal(typeof pub.voted_at, "string");
+  assert.equal(pub.ip, undefined);
+  assert.equal(pub.nameHash, undefined);
+  assert.equal(pub.nameKey, undefined);
+  assert.equal(db.docs.get("votes/KS010").ip, "203.0.113.1");
   assert.equal(db.docs.get("voteOtps/KS010").used, true);
   assert.equal(hashOtp("654321"), db.docs.get("voteOtps/KS010").otpHash);
 });
@@ -500,6 +511,8 @@ test("a vote is still confirmed one millisecond before close", async () => {
   assert.equal(result.ok, true);
   assert.equal(result.vote.email, "masud@kaz-software.com");
   assert.equal(db.docs.get("publicTallies/live").totalVotes, 1);
+  assert.equal(db.docs.get("publicVotes/KS010").destination, "sundarbans");
+  assert.equal(db.docs.get("publicVotes/KS010").ip, undefined);
 });
 
 test("at the close instant a planted code cannot vote or change the tally", async () => {
@@ -520,4 +533,5 @@ test("at the close instant a planted code cannot vote or change the tally", asyn
   assert.equal(result.error, "voting_closed");
   assert.equal(db.docs.has("votes/KS010"), false);
   assert.equal(db.docs.has("publicTallies/live"), false);
+  assert.equal(db.docs.has("publicVotes/KS010"), false);
 });
