@@ -158,6 +158,10 @@
             <div id="liveVoteBars" class="live-vote__bars mt-5 space-y-3.5">
               <p class="text-sm text-[var(--muted)]">ফলাফল লোড হচ্ছে…</p>
             </div>
+            <button type="button" data-nav="roster" class="live-vote__open focus-ring">
+              ভোটের হালচাল
+              <i data-lucide="arrow-right" class="w-4 h-4" aria-hidden="true"></i>
+            </button>
           </aside>
         </div>
       </div>
@@ -208,9 +212,9 @@
       <div id="finaleGrid" class="dest-grid grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
       <div id="voteResults" class="vote-results mt-12 hidden" aria-live="polite"></div>
-      <p class="mt-6">
-        <button type="button" data-nav="roster" class="roster-jump focus-ring">কে কোথায় ভোট দিয়েছে</button>
-      </p>
+      <!-- <p class="mt-6">
+        <button type="button" data-nav="roster" class="roster-jump focus-ring">ভোটের হালচাল</button>
+      </p> -->
       <div id="voteEnding" class="ending-card mt-8 hidden" aria-live="polite"></div>
 
       <p id="voteNote" class="mt-6 text-sm text-[var(--muted)]" role="status" aria-live="polite"></p>
@@ -218,11 +222,11 @@
   </section>
 
   <!-- 05 Roster -->
-  <section class="view" data-view="roster" aria-label="কে কোথায় ভোট দিয়েছে">
+  <section class="view" data-view="roster" aria-label="ভোটের হালচাল">
     <div class="roster-page min-h-screen max-w-5xl mx-auto px-4 py-24">
       <header class="roster-head">
         <div>
-          <h2 class="font-display text-4xl md:text-6xl leading-tight">কে কোথায় যাচ্ছে</h2>
+          <h2 class="font-display text-4xl md:text-6xl leading-tight">ভোটের হালচাল</h2>
           <p id="rosterTotal" class="roster-total" aria-live="polite">তালিকা আসছে</p>
         </div>
         <div class="roster-copy-wrap">
@@ -230,9 +234,17 @@
           <p id="rosterCopyUrl" class="roster-copy-url" hidden></p>
         </div>
       </header>
-      <form id="rosterSearch" class="roster-search" role="search">
-        <label for="rosterQuery">নাম, আইডি বা ইমেইল</label>
-        <input id="rosterQuery" class="focus-ring" type="search" name="q" autocomplete="off" enterkeyhint="search" />
+      <form id="rosterSearch" class="roster-filters" role="search">
+        <div class="roster-field">
+          <label for="rosterQuery">নাম, আইডি বা ইমেইল</label>
+          <input id="rosterQuery" class="focus-ring" type="search" name="q" autocomplete="off" enterkeyhint="search" />
+        </div>
+        <div class="roster-field">
+          <label for="rosterDest">গন্তব্য</label>
+          <select id="rosterDest" class="focus-ring" name="destination">
+            <option value="">সব গন্তব্য</option>
+          </select>
+        </div>
       </form>
       <div id="rosterNote" class="roster-note" role="status"></div>
       <div id="rosterGroups" class="roster-groups"></div>

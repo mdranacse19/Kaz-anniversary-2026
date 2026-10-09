@@ -891,6 +891,35 @@ html.js-motion .reveal.visible {
   font-size: 0.95rem;
 }
 
+.live-vote__open {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 1.15rem;
+  padding: 0.7rem 0.15rem 0.1rem;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+  color: #f0d78c;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.live-vote__open:hover {
+  color: #fff8e8;
+}
+
+.live-vote__open:active {
+  transform: scale(0.98);
+}
+
 .live-vote-row {
   display: grid;
   gap: 0.35rem;
@@ -943,6 +972,9 @@ html.js-motion .reveal.visible {
 @media (prefers-reduced-motion: reduce) {
   .live-vote-fill {
     transition: none;
+  }
+  .live-vote__open:active {
+    transform: none;
   }
 }
 
@@ -1151,19 +1183,28 @@ html.js-motion #chapterTabs button:active {
   user-select: all;
 }
 
-.roster-search {
+.roster-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem 1.25rem;
   margin-top: 2rem;
-  max-width: 36rem;
 }
 
-.roster-search label {
+.roster-field {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.roster-field label {
   display: block;
   margin-bottom: 0.45rem;
   font-family: var(--font-ui);
   font-size: 0.95rem;
 }
 
-.roster-search input {
+.roster-field input,
+.roster-field select {
   width: 100%;
   min-height: 44px;
   padding: 0.65rem 0.9rem;
@@ -1173,6 +1214,11 @@ html.js-motion #chapterTabs button:active {
   color: var(--text);
   font: inherit;
   caret-color: var(--amber);
+}
+
+.roster-field select {
+  cursor: pointer;
+  color-scheme: dark;
 }
 
 .roster-page ::selection {

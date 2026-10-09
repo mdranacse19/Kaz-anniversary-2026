@@ -2254,8 +2254,20 @@
   /* ——— Public roster: who voted where ——— */
   let rosterState = { status: "loading", people: [], error: null };
   let rosterQuery = "";
+  let rosterDest = "";
   let rosterCopyTimer = 0;
   let rosterBound = false;
+
+  function employeeIdRank(id) {
+    const match = String(id || "").match(/(\d+)\s*$/);
+    return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
+  }
+
+  function compareEmployeeId(a, b) {
+    const diff = employeeIdRank(a.employee_id) - employeeIdRank(b.employee_id);
+    if (diff) return diff;
+    return String(a.employee_id).localeCompare(String(b.employee_id));
+  }
 
   function escapeHtml(value) {
     return String(value || "")
@@ -2276,6 +2288,19 @@
     $("#rosterSearch")?.addEventListener("submit", (e) => e.preventDefault());
     $("#rosterQuery")?.addEventListener("input", (e) => {
       rosterQuery = e.target.value;
+      paintRoster();
+    });
+    const destSelect = $("#rosterDest");
+    if (destSelect && destSelect.options.length < 2) {
+      (window.DESTINATIONS || []).forEach((dest) => {
+        const option = document.createElement("option");
+        option.value = dest.id;
+        option.textContent = dest.name;
+        destSelect.appendChild(option);
+      });
+    }
+    destSelect?.addEventListener("change", (e) => {
+      rosterDest = e.target.value;
       paintRoster();
     });
     $("#rosterCopy")?.addEventListener("click", copyRosterLink);
@@ -2364,11 +2389,11 @@
 
   function rosterPeople() {
     const q = rosterQuery.trim().toLowerCase();
-    const people = rosterState.people || [];
-    if (!q) return people;
-    return people.filter((person) =>
-      `${person.name} ${person.employee_id} ${person.email}`.toLowerCase().includes(q)
-    );
+    return (rosterState.people || []).filter((person) => {
+      if (rosterDest && person.destination !== rosterDest) return false;
+      if (!q) return true;
+      return `${person.name} ${person.employee_id} ${person.email}`.toLowerCase().includes(q);
+    });
   }
 
   function renderRoster() {
@@ -2421,17 +2446,35 @@
       byDest.set(person.destination, list);
     });
 
-    const dests = window.DESTINATIONS || [];
-    const visible = q ? dests.filter((d) => (byDest.get(d.id) || []).length) : dests;
+    const voteCount = new Map();
+    people.forEach((person) => {
+      voteCount.set(person.destination, (voteCount.get(person.destination) || 0) + 1);
+    });
+    const dests = (window.DESTINATIONS || []).slice().sort(
+      (a, b) => (voteCount.get(b.id) || 0) - (voteCount.get(a.id) || 0)
+    );
+    const order = dests.map((d) => d.id).join(",");
+    const destSelect = $("#rosterDest");
+    if (destSelect && destSelect.dataset.order !== order) {
+      const chosen = rosterDest;
+      destSelect.innerHTML = `<option value="">সব গন্তব্য</option>${dests
+        .map((d) => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name)}</option>`)
+        .join("")}`;
+      destSelect.dataset.order = order;
+      destSelect.value = chosen;
+      if (destSelect.value !== chosen) {
+        rosterDest = "";
+        destSelect.value = "";
+      }
+    }
+    const visible = dests.filter((d) => {
+      if (rosterDest && d.id !== rosterDest) return false;
+      if (q && !(byDest.get(d.id) || []).length) return false;
+      return true;
+    });
     groups.innerHTML = visible
       .map((dest) => {
-        const list = (byDest.get(dest.id) || [])
-          .slice()
-          .sort(
-            (a, b) =>
-              a.name.localeCompare(b.name, "en", { sensitivity: "base" }) ||
-              a.employee_id.localeCompare(b.employee_id)
-          );
+        const list = (byDest.get(dest.id) || []).slice().sort(compareEmployeeId);
         const rows = list.length
           ? `<ul class="roster-people">${list
               .map(
