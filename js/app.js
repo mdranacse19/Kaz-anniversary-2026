@@ -1056,7 +1056,10 @@
     el.classList.remove("vote-close-banner--closed");
     const when = new Date(at + 6 * 60 * 60 * 1000);
     const months = ["জানুয়ারি", "ফেব্রুয়ারি", "মার্চ", "এপ্রিল", "মে", "জুন", "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর"];
-    const stamp = `${bn(when.getUTCDate())} ${months[when.getUTCMonth()]} ${bn(when.getUTCFullYear())}, ${bn(String(when.getUTCHours()).padStart(2, "0"))}:${bn(String(when.getUTCMinutes()).padStart(2, "0"))}`;
+    const h24 = when.getUTCHours();
+    const h12 = h24 % 12 || 12;
+    const ampm = h24 < 12 ? "AM" : "PM";
+    const stamp = `${bn(when.getUTCDate())} ${months[when.getUTCMonth()]} ${bn(when.getUTCFullYear())}, ${bn(h12)}:${bn(String(when.getUTCMinutes()).padStart(2, "0"))} ${ampm}`;
     const total = Math.floor(left / 1000);
     const days = Math.floor(total / 86400);
     const hours = Math.floor((total % 86400) / 3600);
