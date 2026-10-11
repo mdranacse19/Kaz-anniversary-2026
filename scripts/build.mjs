@@ -1,6 +1,8 @@
 /**
- * Static build for Vercel: copies only the public site into dist/.
- * data/, server/, scripts/ and .env never reach the output.
+ * Static build for Vercel: copies the public site into dist/.
+ * data/employees.json (id and name only) is copied so the results page
+ * can list who has not voted. The rest of data/, plus server/, scripts/
+ * and .env, never reach the output.
  *
  *   npm run build
  */
@@ -51,11 +53,21 @@ for (const name of PUBLIC) {
   console.log(`  ✓ ${name.padEnd(12)} ${label.padStart(9)} ${size(part.bytes).padStart(10)}`);
 }
 
-const leaked = PRIVATE.filter((name) => existsSync(join(OUT, name)));
+mkdirSync(join(OUT, "data"));
+cpSync(join(ROOT, "data/employees.json"), join(OUT, "data/employees.json"));
+const staff = measure(join(OUT, "data/employees.json"));
+total = { files: total.files + staff.files, bytes: total.bytes + staff.bytes };
+console.log(`  ✓ ${"employees.json".padEnd(12)} ${"1 file".padStart(9)} ${size(staff.bytes).padStart(10)}`);
+
+const leaked = PRIVATE.filter((name) => {
+  if (name !== "data") return existsSync(join(OUT, name));
+  const names = readdirSync(join(OUT, "data"));
+  return names.length !== 1 || names[0] !== "employees.json";
+});
 if (leaked.length) {
   console.error(`\n✖ Build failed: private paths in dist/: ${leaked.join(", ")}\n`);
   process.exit(1);
 }
 
 console.log(`\n✔ Built dist/ · ${total.files} files · ${size(total.bytes)} · ${Date.now() - started} ms`);
-console.log("  Private paths kept out: data/, server/, scripts/, .env\n");
+console.log("  Private paths kept out: server/, scripts/, .env, and the rest of data/\n");

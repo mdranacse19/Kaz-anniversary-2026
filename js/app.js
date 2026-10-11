@@ -2255,18 +2255,14 @@
   let rosterState = { status: "loading", people: [], error: null };
   let rosterQuery = "";
   let rosterDest = "";
-  let rosterCopyTimer = 0;
   let rosterBound = false;
+  let rosterShowMissing = false;
+  let rosterStaff = null;
+  let rosterStaffError = null;
+  let rosterStaffLoading = false;
 
-  function employeeIdRank(id) {
-    const match = String(id || "").match(/(\d+)\s*$/);
-    return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
-  }
-
-  function compareEmployeeId(a, b) {
-    const diff = employeeIdRank(a.employee_id) - employeeIdRank(b.employee_id);
-    if (diff) return diff;
-    return String(a.employee_id).localeCompare(String(b.employee_id));
+  function compareRosterName(a, b) {
+    return String(a.name || "").localeCompare(String(b.name || ""), "en", { sensitivity: "base" });
   }
 
   function escapeHtml(value) {
@@ -2303,7 +2299,16 @@
       rosterDest = e.target.value;
       paintRoster();
     });
-    $("#rosterCopy")?.addEventListener("click", copyRosterLink);
+    $("#rosterMissing")?.addEventListener("click", () => {
+      rosterShowMissing = !rosterShowMissing;
+      const btn = $("#rosterMissing");
+      if (btn) {
+        btn.setAttribute("aria-pressed", rosterShowMissing ? "true" : "false");
+        btn.textContent = rosterShowMissing ? "যারা ভোট দিয়েছে" : "যারা ভোট দেয়নি";
+      }
+      if (rosterShowMissing) loadStaff();
+      paintRoster();
+    });
     $("#rosterNote")?.addEventListener("click", (e) => {
       if (e.target.closest("[data-roster-clear]")) {
         rosterQuery = "";
@@ -2315,7 +2320,10 @@
         (input || destSelect)?.focus();
         paintRoster();
       }
-      if (e.target.closest("[data-roster-retry]")) reloadRoster();
+      if (e.target.closest("[data-roster-retry]")) {
+        if (rosterShowMissing && rosterStaffError) loadStaff();
+        else reloadRoster();
+      }
     });
   }
 
@@ -2334,6 +2342,7 @@
 
   function startRoster() {
     bindRoster();
+    loadStaff();
     if (!Vote || typeof Vote.subscribeRoster !== "function") {
       applyRoster({ ok: false, error: "firebase_not_configured" });
       return;
@@ -2348,44 +2357,23 @@
     else startRoster();
   }
 
-  async function copyRosterLink() {
-    const url = `${location.origin}${location.pathname}${location.search}#roster`;
-    const btn = $("#rosterCopy");
-    let ok = false;
+  async function loadStaff() {
+    if (rosterStaff || rosterStaffLoading) return;
+    rosterStaffLoading = true;
+    rosterStaffError = null;
+    if (state.view === "roster") paintRoster();
     try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(url);
-        ok = true;
-      }
+      const res = await fetch("data/employees.json");
+      if (!res.ok) throw new Error(String(res.status));
+      const data = await res.json();
+      rosterStaff = Array.isArray(data.employees) ? data.employees : [];
     } catch {
-      ok = false;
+      rosterStaff = null;
+      rosterStaffError = "staff_unavailable";
+    } finally {
+      rosterStaffLoading = false;
+      if (state.view === "roster") paintRoster();
     }
-    if (!ok) {
-      const ta = document.createElement("textarea");
-      ta.value = url;
-      ta.setAttribute("readonly", "");
-      ta.style.position = "fixed";
-      ta.style.left = "-9999px";
-      document.body.appendChild(ta);
-      ta.select();
-      try {
-        ok = document.execCommand("copy");
-      } catch {
-        ok = false;
-      }
-      ta.remove();
-    }
-    if (!btn) return;
-    const urlEl = $("#rosterCopyUrl");
-    if (urlEl) {
-      urlEl.hidden = ok;
-      urlEl.textContent = ok ? "" : url;
-    }
-    btn.textContent = ok ? "লিংক কপি হয়েছে" : "কপি হয়নি — লিংকটি বেছে নিন";
-    window.clearTimeout(rosterCopyTimer);
-    rosterCopyTimer = window.setTimeout(() => {
-      if ($("#rosterCopy")) $("#rosterCopy").textContent = "লিংক কপি করুন";
-    }, 2500);
   }
 
   function rosterPeople() {
@@ -2398,16 +2386,108 @@
     });
   }
 
+  function missingRoster() {
+    const voted = new Set(
+      (rosterState.people || []).map((person) => String(person.employee_id || "").trim().toUpperCase())
+    );
+    return (rosterStaff || [])
+      .filter((person) => {
+        const id = String(person.id || "").trim().toUpperCase();
+        return id && !voted.has(id);
+      })
+      .map((person) => ({
+        name: String(person.name || "").trim(),
+        employee_id: String(person.id || "").trim(),
+      }));
+  }
+
   function renderRoster() {
     bindRoster();
     paintRoster();
   }
 
+  function paintRosterStats() {
+    const peopleEl = $("#rosterStatPeople");
+    const votedEl = $("#rosterStatVoted");
+    const pctEl = $("#rosterStatPct");
+    if (!peopleEl || !votedEl || !pctEl) return;
+    const votesReady = rosterState.status === "ready";
+    const voted = votesReady ? (rosterState.people || []).length : null;
+    const total = rosterStaff ? rosterStaff.length : null;
+    peopleEl.textContent = total == null ? "—" : bn(total);
+    votedEl.textContent = voted == null ? "—" : bn(voted);
+    pctEl.textContent = total && voted != null ? bnPct(pctOfTotal(voted, total)) : "—";
+  }
+
+  function paintMissing(note, groups) {
+    const q = rosterQuery.trim().toLowerCase();
+    const waiting = rosterState.status === "loading" || rosterStaffLoading;
+    const voteFailed = rosterState.status === "error";
+    const staffFailed = Boolean(rosterStaffError);
+    const all = waiting || voteFailed || staffFailed ? [] : missingRoster();
+    const shown = q
+      ? all.filter((person) => `${person.name} ${person.employee_id}`.toLowerCase().includes(q))
+      : all;
+
+    if (note) {
+      if (voteFailed) {
+        note.innerHTML = `<p class="roster-empty">${escapeHtml(rosterErrorCopy(rosterState.error))}</p><button type="button" class="btn-ghost focus-ring roster-retry" data-roster-retry>আবার চেষ্টা করুন</button>`;
+      } else if (staffFailed) {
+        note.innerHTML = `<p class="roster-empty">কর্মীর তালিকা আসেনি। আবার চেষ্টা করুন।</p><button type="button" class="btn-ghost focus-ring roster-retry" data-roster-retry>আবার চেষ্টা করুন</button>`;
+      } else if (!waiting && !q && !all.length) {
+        note.innerHTML = `<p class="roster-empty">সবাই ভোট দিয়েছে।</p>`;
+      } else if (!waiting && q && !shown.length) {
+        note.innerHTML = `<p class="roster-empty">এই খোঁজে কেউ মেলেনি।</p><button type="button" class="btn-ghost focus-ring roster-retry" data-roster-clear>খোঁজ মুছুন</button>`;
+      } else {
+        note.innerHTML = "";
+      }
+    }
+
+    if (waiting) {
+      groups.innerHTML = `<div class="roster-skel" aria-hidden="true">${Array.from({ length: 6 }, () => `<span class="roster-skel__bar"></span>`).join("")}</div>`;
+      return;
+    }
+    if (voteFailed || staffFailed || (q && !shown.length) || !shown.length) {
+      groups.innerHTML = "";
+      return;
+    }
+
+    const rows = shown
+      .slice()
+      .sort(compareRosterName)
+      .map(
+        (person) => `<tr class="roster-person">
+          <td class="roster-person__name">${escapeHtml(person.name)}</td>
+          <td class="roster-person__id">${escapeHtml(person.employee_id)}</td>
+        </tr>`
+      )
+      .join("");
+    groups.innerHTML = `<table class="roster-table roster-table--pair">
+      <thead>
+        <tr>
+          <th scope="col">নাম</th>
+          <th scope="col">আইডি</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
   function paintRoster() {
-    const totalEl = $("#rosterTotal");
     const note = $("#rosterNote");
     const groups = $("#rosterGroups");
     if (!groups) return;
+
+    const destField = $("#rosterDest")?.closest(".roster-field");
+    if (destField) destField.hidden = rosterShowMissing;
+    const queryLabel = document.querySelector('label[for="rosterQuery"]');
+    if (queryLabel) queryLabel.textContent = rosterShowMissing ? "নাম বা আইডি" : "নাম, আইডি বা ইমেইল";
+    paintRosterStats();
+
+    if (rosterShowMissing) {
+      paintMissing(note, groups);
+      return;
+    }
 
     const loading = rosterState.status === "loading";
     const failed = rosterState.status === "error";
@@ -2415,16 +2495,11 @@
     const q = rosterQuery.trim();
     const shown = rosterPeople();
 
-    if (totalEl) {
-      if (loading) totalEl.textContent = "তালিকা আসছে";
-      else if (failed) totalEl.textContent = "তালিকা আসেনি";
-      else if (!people.length) totalEl.textContent = "এখনো কেউ ভোট দেয়নি";
-      else totalEl.textContent = `${bn(people.length)} জন ভোট দিয়েছেন`;
-    }
-
     if (note) {
       if (failed) {
         note.innerHTML = `<p class="roster-empty">${escapeHtml(rosterErrorCopy(rosterState.error))}</p><button type="button" class="btn-ghost focus-ring roster-retry" data-roster-retry>আবার চেষ্টা করুন</button>`;
+      } else if (!loading && !people.length) {
+        note.innerHTML = `<p class="roster-empty">এখনো কেউ ভোট দেয়নি।</p>`;
       } else if (!loading && (q || rosterDest) && !shown.length) {
         const miss = q ? "এই খোঁজে কেউ মেলেনি।" : "এই গন্তব্যে এখনো কেউ নয়।";
         note.innerHTML = `<p class="roster-empty">${miss}</p><button type="button" class="btn-ghost focus-ring roster-retry" data-roster-clear>খোঁজ মুছুন</button>`;
@@ -2437,7 +2512,7 @@
       groups.innerHTML = `<div class="roster-skel" aria-hidden="true">${Array.from({ length: 6 }, () => `<span class="roster-skel__bar"></span>`).join("")}</div>`;
       return;
     }
-    if (failed || ((q || rosterDest) && !shown.length)) {
+    if (failed || !people.length || ((q || rosterDest) && !shown.length)) {
       groups.innerHTML = "";
       return;
     }
@@ -2466,7 +2541,7 @@
 
     const rows = shown
       .slice()
-      .sort(compareEmployeeId)
+      .sort(compareRosterName)
       .map((person) => {
         const dest = getDestById(person.destination);
         const destName = dest?.name || person.destination;

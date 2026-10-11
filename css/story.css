@@ -1150,11 +1150,40 @@ html.js-motion #chapterTabs button:active {
   gap: 1.25rem 2rem;
 }
 
-.roster-total {
-  margin-top: 0.85rem;
+.roster-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  margin: 1.15rem 0 0;
+}
+
+.roster-stats > div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.2rem;
+}
+
+.roster-stats dt {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.3;
   color: var(--muted);
-  font-size: 1.05rem;
-  line-height: 1.5;
+}
+
+.roster-stats dd {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1.85rem;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.roster-stats .is-share dd {
+  color: #f0d78c;
 }
 
 .roster-copy-wrap {
@@ -1171,6 +1200,12 @@ html.js-motion #chapterTabs button:active {
   font-family: var(--font-ui);
   font-weight: 600;
   cursor: pointer;
+}
+
+.roster-copy[aria-pressed="true"] {
+  background: transparent;
+  color: #f0d78c;
+  box-shadow: inset 0 0 0 1.5px #e9b44c;
 }
 
 .roster-copy-url {
@@ -1356,6 +1391,16 @@ html.js-motion #chapterTabs button:active {
   .roster-table th:nth-child(4),
   .roster-person__dest {
     width: 28%;
+  }
+
+  .roster-table--pair th:nth-child(1),
+  .roster-table--pair .roster-person__name {
+    width: 70%;
+  }
+
+  .roster-table--pair th:nth-child(2),
+  .roster-table--pair .roster-person__id {
+    width: 30%;
   }
 }
 

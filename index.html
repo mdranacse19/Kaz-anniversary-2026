@@ -227,11 +227,23 @@
       <header class="roster-head">
         <div>
           <h2 class="font-display text-4xl md:text-6xl leading-tight">ভোটের হালচাল</h2>
-          <p id="rosterTotal" class="roster-total" aria-live="polite">তালিকা আসছে</p>
+          <dl id="rosterStats" class="roster-stats" aria-live="polite">
+            <div>
+              <dt>জন আছে</dt>
+              <dd id="rosterStatPeople">—</dd>
+            </div>
+            <div>
+              <dt>ভোট মেরেছে</dt>
+              <dd id="rosterStatVoted">—</dd>
+            </div>
+            <div class="is-share">
+              <dt>ধরা পড়েছে</dt>
+              <dd id="rosterStatPct">—</dd>
+            </div>
+          </dl>
         </div>
         <div class="roster-copy-wrap">
-          <button id="rosterCopy" type="button" class="btn-primary focus-ring roster-copy" aria-live="polite">লিংক কপি করুন</button>
-          <p id="rosterCopyUrl" class="roster-copy-url" hidden></p>
+          <button id="rosterMissing" type="button" class="btn-primary focus-ring roster-copy" aria-pressed="false">যারা ভোট দেয়নি</button>
         </div>
       </header>
       <form id="rosterSearch" class="roster-filters" role="search">
