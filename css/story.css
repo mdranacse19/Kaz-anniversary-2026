@@ -841,13 +841,13 @@ html.js-motion .reveal.visible {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 0.5rem 0.75rem;
 }
 
-.live-vote__title-row h2 {
+.live-vote__title-row h2,
+.live-vote__title-row h3 {
   margin: 0;
-  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -855,13 +855,13 @@ html.js-motion .reveal.visible {
   margin: 0;
   flex: 0 0 auto;
   font-family: var(--font-ui);
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+  letter-spacing: 0.01em;
   color: #f0d78c;
   background: rgba(233, 180, 76, 0.12);
   border: 1px solid rgba(233, 180, 76, 0.28);
   border-radius: 999px;
-  padding: 0.28rem 0.7rem;
+  padding: 0.22rem 0.5rem;
   white-space: nowrap;
 }
 

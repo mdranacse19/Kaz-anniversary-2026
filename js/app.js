@@ -879,6 +879,23 @@
     return Math.round((count / total) * 100);
   }
 
+  function turnoutLabel(totalVotes) {
+    const eligible = rosterStaff ? rosterStaff.length : 0;
+    if (!eligible) return "";
+    return `মোট ভোটের হার ${bnPct(pctOfTotal(totalVotes || 0, eligible))}`;
+  }
+
+  function paintTurnout(totalVotes) {
+    const label = turnoutLabel(totalVotes);
+    const spots = [$("#liveVoteMeta"), $("#voteTurnout")];
+    spots.forEach((el) => {
+      if (!el) return;
+      el.textContent = label;
+      if (label) el.setAttribute("aria-label", label);
+      else el.removeAttribute("aria-label");
+    });
+  }
+
   async function refreshLiveVote(resultsIn) {
     const bars = $("#liveVoteBars");
     const meta = $("#liveVoteMeta");
@@ -911,6 +928,8 @@
     }
 
     const total = results.totalVotes || 0;
+    loadStaff();
+    paintTurnout(total);
     const myId = results.myVote && results.myVote.destinationId;
     const ordered = window.DESTINATIONS.map((d) => ({
       ...d,
@@ -939,8 +958,6 @@
           </div>`;
       })
       .join("");
-
-    if (meta) meta.textContent = "";
 
     // A vote just arrived (realtime or ours): that bar pulses and a "+১" floats up.
     if (hadPrev && jsMotion) {
@@ -979,9 +996,11 @@
     lastBarCounts = { ...results.counts };
 
     root.classList.remove("hidden");
+    loadStaff();
     root.innerHTML = `
-      <div class="vote-results__head">
+      <div class="vote-results__head live-vote__title-row">
         <h3 class="font-display text-3xl md:text-4xl">লাইভ ফলাফল</h3>
+        <p id="voteTurnout" class="live-vote__total" aria-live="polite">${turnoutLabel(total)}</p>
       </div>
       <div class="vote-bars mt-8 space-y-4" role="list" aria-label="ভোটের ফলাফল">
         ${ranked
@@ -1005,6 +1024,7 @@
           .join("")}
       </div>
     `;
+    paintTurnout(total);
 
     if (hadPrev && jsMotion) {
       ranked.forEach((d) => {
@@ -2376,6 +2396,7 @@
     } finally {
       rosterStaffLoading = false;
       if (state.view === "roster") paintRoster();
+      if (state.voteResults) paintTurnout(state.voteResults.totalVotes || 0);
     }
   }
 
